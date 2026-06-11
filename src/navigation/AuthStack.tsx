@@ -8,8 +8,12 @@ const AppStack = () => {
   return (
     <Stack.Navigator>
       <Stack.Screen
-        name="MyG2"
-  component={LoginScreen}      />
+        name="Login"
+        component={LoginScreen}
+        options={{
+          headerShown: false,
+        }}
+      />
     </Stack.Navigator>
   );
 };

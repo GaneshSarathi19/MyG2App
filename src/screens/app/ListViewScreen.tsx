@@ -4,6 +4,7 @@ import {
   Text,
   FlatList,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 
 interface Post {
@@ -12,60 +13,40 @@ interface Post {
   body: string;
 }
 
-const staticEmployees = [
-  {
-    id: '1',
-    name: 'John Smith',
-    department: 'Mobile Development',
-  },
-  {
-    id: '2',
-    name: 'Sarah Wilson',
-    department: 'Quality Assurance',
-  },
-  {
-    id: '3',
-    name: 'Michael Brown',
-    department: 'Backend Development',
-  },
-];
-
 const ListViewScreen = () => {
   const [posts, setPosts] = useState<Post[]>([]);
+const [loading, setLoading] = useState(true);
+ useEffect(() => {
+  fetch('https://jsonplaceholder.typicode.com/posts')
+    .then(response => response.json())
+    .then((data: Post[]) => {
+      setPosts(data.slice(0, 10));
+    })
+    .catch(error => {
+      console.log('API Error:', error);
+    })
+    .finally(() => {
+      setLoading(false);
+    });
+}, []);
+if (loading) {
+  return (
+    <View style={styles.loaderContainer}>
+      <ActivityIndicator
+        size="large"
+        color="#1976D2"
+      />
 
-  useEffect(() => {
-    fetch('https://jsonplaceholder.typicode.com/posts')
-      .then(response => response.json())
-      .then((data: Post[]) => {
-        setPosts(data.slice(0, 10));
-      })
-      .catch(error => {
-        console.log('API Error:', error);
-      });
-  }, []);
-
+      <Text style={styles.loadingText}>
+        Loading posts...
+      </Text>
+    </View>
+  );
+}
   return (
     <FlatList<Post>
       ListHeaderComponent={
         <>
-          <Text style={styles.heading}>
-            Static Employee List
-          </Text>
-
-          {staticEmployees.map(employee => (
-            <View
-              key={employee.id}
-              style={styles.card}>
-              <Text style={styles.employeeName}>
-                {employee.name}
-              </Text>
-
-              <Text>
-                Department: {employee.department}
-              </Text>
-            </View>
-          ))}
-
           <Text style={styles.heading}>
             API Data (JSONPlaceholder Posts)
           </Text>
@@ -106,7 +87,16 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     elevation: 3,
   },
+loaderContainer: {
+  flex: 1,
+  justifyContent: 'center',
+  alignItems: 'center',
+},
 
+loadingText: {
+  marginTop: 15,
+  fontSize: 16,
+},
   employeeName: {
     fontSize: 18,
     fontWeight: 'bold',

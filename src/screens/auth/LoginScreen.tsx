@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, {useState, useRef} from 'react';
 import {
   View,
   Text,
@@ -12,66 +12,168 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
 } from 'react-native';
-
-import { useAuth } from '../../context/AuthContext';
+import {COLORS} from '../../theme/colors';
+import {useAuth} from '../../context/AuthContext';
 
 const LoginScreen = () => {
-  const { login } = useAuth();
+  const {login} = useAuth();
 
-const [username, setUsername] = useState('');
-const [password, setPassword] = useState('');
-const [showPassword, setShowPassword] = useState(false);  const handleLogin = () => {
-    const validUsername = 'admin';
-    const validPassword = '1234';
+  const validUsername = 'admin';
+  const validPassword = '1234';
 
-    if (username === validUsername && password === validPassword) {
-      login();
-    } else {
-      Alert.alert('Login Failed', 'Invalid Username or Password');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+
+  const [isUsernameFocused, setIsUsernameFocused] =
+    useState(false);
+
+  const [isPasswordFocused, setIsPasswordFocused] =
+    useState(false);
+
+  const [showPassword, setShowPassword] =
+    useState(false);
+
+  const passwordInputRef = useRef<TextInput>(null);
+
+  const handleUsernameChange = (text: string) => {
+    const filteredText = text.replace(
+      /[^a-zA-Z0-9]/g,
+      '',
+    );
+
+    setUsername(filteredText);
+  };
+
+  const isFormValid =
+    username === validUsername &&
+    password === validPassword;
+
+  const handleLogin = () => {
+    if (!isFormValid) {
+      Alert.alert(
+        'Login Failed',
+        'Invalid Username or Password',
+      );
+      return;
     }
+
+    login();
   };
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+    <TouchableWithoutFeedback
+      onPress={Keyboard.dismiss}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+        behavior={
+          Platform.OS === 'ios'
+            ? 'padding'
+            : 'height'
+        }>
         <ScrollView
-          contentContainerStyle={styles.scrollContainer}
-          keyboardShouldPersistTaps="handled"
-        >
+          contentContainerStyle={
+            styles.scrollContainer
+          }
+          keyboardShouldPersistTaps="handled">
           <View style={styles.container}>
-            <Text style={styles.text}>Welcome to MyG2</Text>
-            <Text style={styles.title}>Employee Portal</Text>
+<Text style={styles.text}>
+  Welcome to MyG2
+</Text>
 
-            <TextInput
-              style={styles.input}
-              placeholder="Username"
-              value={username}
-              onChangeText={setUsername}
-              autoCapitalize="none"
-            />
+<Text style={styles.title}>
+  Employee Portal
+</Text>
 
-            <View style={styles.passwordContainer}>
-              <TextInput
-                style={styles.passwordInput}
-                placeholder="Password"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-              />
+<View style={styles.loginCard}>
 
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                <Text style={styles.toggleText}>
-                  {showPassword ? 'Hide' : 'Show'}
-                </Text>
-              </TouchableOpacity>
-            </View>
+  <TextInput
+    style={[
+      styles.input,
+      isUsernameFocused &&
+        styles.activeInput,
+    ]}
+    placeholder="Username"
+    placeholderTextColor={
+      COLORS.textSecondary
+    }
+    value={username}
+    onChangeText={handleUsernameChange}
+    returnKeyType="next"
+    onSubmitEditing={() =>
+      passwordInputRef.current?.focus()
+    }
+    onFocus={() =>
+      setIsUsernameFocused(true)
+    }
+    onBlur={() =>
+      setIsUsernameFocused(false)
+    }
+  />
 
-            <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-              <Text style={styles.loginButtonText}>Login</Text>
-            </TouchableOpacity>
+  {username.length > 0 &&
+    username !== validUsername && (
+      <Text style={styles.errorText}>
+        Invalid Username
+      </Text>
+    )}
+
+  <View
+    style={[
+      styles.passwordContainer,
+      isPasswordFocused &&
+        styles.activeInput,
+    ]}>
+    <TextInput
+      ref={passwordInputRef}
+      style={styles.passwordInput}
+      placeholder="Password"
+      placeholderTextColor={
+        COLORS.textSecondary
+      }
+      value={password}
+      onChangeText={setPassword}
+      secureTextEntry={!showPassword}
+      returnKeyType="done"
+      onSubmitEditing={handleLogin}
+      onFocus={() =>
+        setIsPasswordFocused(true)
+      }
+      onBlur={() =>
+        setIsPasswordFocused(false)
+      }
+    />
+
+    <TouchableOpacity
+      onPress={() =>
+        setShowPassword(!showPassword)
+      }>
+      <Text style={styles.toggleText}>
+        {showPassword ? 'Hide' : 'Show'}
+      </Text>
+    </TouchableOpacity>
+  </View>
+
+  {password.length > 0 &&
+    password !== validPassword && (
+      <Text style={styles.errorText}>
+        Invalid Password
+      </Text>
+    )}
+
+  <TouchableOpacity
+    style={[
+      styles.loginButton,
+      !isFormValid &&
+        styles.disabledButton,
+    ]}
+    disabled={!isFormValid}
+    onPress={handleLogin}>
+    <Text style={styles.loginButtonText}>
+      Login
+    </Text>
+  </TouchableOpacity>
+
+</View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -82,82 +184,119 @@ const [showPassword, setShowPassword] = useState(false);  const handleLogin = ()
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
-  },
-  passwordContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 10,
-    paddingHorizontal: 15,
-    marginBottom: 15,
-    backgroundColor: '#FFF',
+    backgroundColor: COLORS.primary,
   },
 
-  passwordInput: {
-    flex: 1,
-    paddingVertical: 15,
-    fontSize: 16,
-  },
-
-  toggleText: {
-    color: '#1976D2',
-    fontWeight: 'bold',
-  },
   scrollContainer: {
     flexGrow: 1,
     justifyContent: 'center',
   },
 
   container: {
+    flex: 1,
+    justifyContent: 'center',
     padding: 25,
+    backgroundColor: COLORS.primary,
   },
 
-  title: {
-    fontSize: 30,
-    fontStyle: 'italic',
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 40,
-    color: '#222',
+  loginCard: {
+    backgroundColor: COLORS.card,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    borderRadius: 20,
+    padding: 25,
+    elevation: 5,
+
+    shadowColor: '#f5eeee',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
   },
+
   text: {
     fontSize: 18,
     textAlign: 'center',
     marginBottom: 10,
-    color: '#555',
+    color: '#E2E8F0',
     fontWeight: '600',
+  },
+
+  title: {
+    fontSize: 30,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 40,
+    color: '#FFFFFF',
   },
 
   input: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 10,
+    borderColor: COLORS.border,
+    borderRadius: 12,
     padding: 15,
     marginBottom: 15,
     fontSize: 16,
-    backgroundColor: '#FFF',
+    color: COLORS.textPrimary,
+    backgroundColor: COLORS.card,
+  },
+
+  activeInput: {
+    borderColor: COLORS.secondary,
+    borderWidth: 2,
+  },
+
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    marginBottom: 15,
+    backgroundColor: COLORS.card,
+  },
+
+  passwordInput: {
+    flex: 1,
+    paddingVertical: 15,
+    fontSize: 16,
+    color: COLORS.textPrimary,
+  },
+
+  toggleText: {
+    color: COLORS.secondary,
+    fontWeight: '600',
+  },
+
+  errorText: {
+    color: COLORS.danger,
+    marginBottom: 10,
+    marginLeft: 5,
+    fontSize: 13,
+    fontWeight: '500',
   },
 
   loginButton: {
-    backgroundColor: '#1976D2',
-    padding: 15,
-    borderRadius: 10,
+    backgroundColor: COLORS.secondary,
+    padding: 16,
+    borderRadius: 12,
     marginTop: 10,
+    elevation: 3,
+  },
+
+  disabledButton: {
+    backgroundColor: COLORS.disabled,
+    elevation: 0,
   },
 
   loginButtonText: {
-    color: '#FFF',
+    color: COLORS.card,
     textAlign: 'center',
-    fontWeight: 'bold',
+    fontWeight: '600',
     fontSize: 16,
   },
-
-  demoText: {
-    textAlign: 'center',
-    marginTop: 10,
-    color: '#666',
-  },
 });
-
 export default LoginScreen;
