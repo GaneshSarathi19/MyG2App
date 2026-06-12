@@ -2,7 +2,6 @@ import React from 'react';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 import DashboardScreen from '../screens/app/DashboardScreen';
-import ListViewScreen from '../screens/app/ListViewScreen';
 import { useDrawer } from '../context/DrawerContext';
 
 const Stack = createNativeStackNavigator();
@@ -25,14 +24,6 @@ const AppStack = () => {
         options={{ headerLeft: () => <ToggleDrawerButton /> }}
       />
 
-      <Stack.Screen
-        name="DemoListView"
-        component={ListViewScreen}
-        options={{
-          title: 'Demo ListView',
-          headerLeft: () => <ToggleDrawerButton />,
-        }}
-      />
 
     </Stack.Navigator>
   );
