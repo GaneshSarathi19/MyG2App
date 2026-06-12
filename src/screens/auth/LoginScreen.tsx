@@ -73,7 +73,16 @@ const LoginScreen = () => {
     return newErrors;
   };
 
-  const handleLogin = () => {
+  /**
+   * Triggers the backend (or mock) login validation.
+   *
+   * - Runs client-side validation first.
+   * - Then calls `login(username, password)` from AuthContext,
+   *   which forwards to the auth service.
+   * - On success: navigates to the app stack (handled by RootNavigator).
+   * - On failure: displays the error message.
+   */
+  const handleLogin = async () => {
     setLoading(true);
     setLoginError(null);
 
@@ -94,22 +103,31 @@ const LoginScreen = () => {
       return;
     }
 
-    if (
-      username.trim() === 'admin' &&
-      password === '1234'
-    ) {
-      setLoading(false);
-      setErrors({});
-      setTouched({
-        username: false,
-        password: false,
-      });
-      login();
-      return;
-    }
+    try {
+      const result = await login(username, password);
 
-    setLoading(false);
-    setLoginError('Invalid Username or Password');
+      if (!result.success) {
+        setLoginError(result.message);
+      } else {
+        // Clear UI state on successful login (isLoggedIn updated in AuthContext)
+        setErrors({});
+        setTouched({
+          username: false,
+          password: false,
+        });
+      }
+    } catch (error) {
+      // ------------------------------------------------------------------- *
+      // Network or unexpected error during the API call.
+      // ------------------------------------------------------------------- *
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Login failed — please try again.';
+      setLoginError(message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const clearLoginError = () => {
