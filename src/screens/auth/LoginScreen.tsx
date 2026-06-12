@@ -11,10 +11,10 @@ import {
   ScrollView,
   TouchableWithoutFeedback,
   Keyboard,
+  Image,
 } from 'react-native';
 import {COLORS} from '../../theme/colors';
 import {useAuth} from '../../context/AuthContext';
-
 const LoginScreen = () => {
   const {login} = useAuth();
 
@@ -76,10 +76,20 @@ const LoginScreen = () => {
           }
           keyboardShouldPersistTaps="handled">
           <View style={styles.container}>
+           <Image
+  source={require('../../assets/images/g2_logo.png')}
+  style={styles.logo}
+  resizeMode="contain"
+/> 
 <Text style={styles.text}>
-  Welcome to MyG2
+  Welcome to{' '}
+  <Text style={styles.myText}>
+    My
+  </Text>
+  <Text style={styles.g2Text}>
+    G2
+  </Text>
 </Text>
-
 <Text style={styles.title}>
   Employee Portal
 </Text>
@@ -191,14 +201,28 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
   },
-
+logo: {
+  width: 220,
+  height: 90,
+  alignSelf: 'center',
+  marginBottom: 20,
+},
   container: {
     flex: 1,
     justifyContent: 'center',
     padding: 25,
     backgroundColor: COLORS.primary,
   },
+myText: {
+  color: COLORS.secondary,
+  fontWeight: '700',
+},
 
+g2Text: {
+  color: '#c4122c',
+  fontWeight: '700',
+  fontSize: 30,
+},
   loginCard: {
     backgroundColor: COLORS.card,
     borderWidth: 2,
