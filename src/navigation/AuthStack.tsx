@@ -7,8 +7,7 @@ const Stack = createNativeStackNavigator();
 const AppStack = () => {
   return (
     <Stack.Navigator>
-      <Stack.Screen
-        name="MyG2"
+      <Stack.Screen name="Login"
   component={LoginScreen}      />
     </Stack.Navigator>
   );

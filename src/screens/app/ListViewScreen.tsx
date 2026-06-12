@@ -1,10 +1,6 @@
-import React, {useEffect, useState} from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
-} from 'react-native';
+import React, {useEffect, useState, useCallback} from 'react';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
+import ErrorView from '../../components/ErrorView';
 
 interface Post {
   id: number;
@@ -12,80 +8,75 @@ interface Post {
   body: string;
 }
 
-const staticEmployees = [
-  {
-    id: '1',
-    name: 'John Smith',
-    department: 'Mobile Development',
-  },
-  {
-    id: '2',
-    name: 'Sarah Wilson',
-    department: 'Quality Assurance',
-  },
-  {
-    id: '3',
-    name: 'Michael Brown',
-    department: 'Backend Development',
-  },
-];
+const API = 'https://jsonplaceholder.typicode.com/posts';
 
 const ListViewScreen = () => {
   const [posts, setPosts] = useState<Post[]>([]);
+  const [page, setPage] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [elapsedMs, setElapsedMs] = useState<number | null>(null);
+  const LIMIT = 10;
 
-  useEffect(() => {
-    fetch('https://jsonplaceholder.typicode.com/posts')
-      .then(response => response.json())
-      .then((data: Post[]) => {
-        setPosts(data.slice(0, 10));
-      })
-      .catch(error => {
-        console.log('API Error:', error);
-      });
+  const load = useCallback(async (pageToLoad = 0, replace = false) => {
+    setError(null);
+    setLoading(true);
+    const start = Date.now();
+    try {
+      const res = await fetch(`${API}?_start=${pageToLoad * LIMIT}&_limit=${LIMIT}`);
+      if (!res.ok) throw new Error(`Status ${res.status}`);
+      const data: Post[] = await res.json();
+      setElapsedMs(Date.now() - start);
+      setPosts(prev => (replace ? data : [...prev, ...data]));
+      setPage(pageToLoad + 1);
+    } catch (e: any) {
+      setError(e.message || 'Unknown error');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
 
+  useEffect(() => {
+    load(0, true);
+  }, [load]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    load(0, true);
+  };
+
+  const onEndReached = () => {
+    if (loading || refreshing) return;
+    load(page, false);
+  };
+
+  if (error) return <ErrorView message={error} onRetry={() => load(page > 0 ? page - 1 : 0, page === 0)} />;
+
   return (
-    <FlatList<Post>
-      ListHeaderComponent={
-        <>
-          <Text style={styles.heading}>
-            Static Employee List
-          </Text>
-
-          {staticEmployees.map(employee => (
-            <View
-              key={employee.id}
-              style={styles.card}>
-              <Text style={styles.employeeName}>
-                {employee.name}
-              </Text>
-
-              <Text>
-                Department: {employee.department}
-              </Text>
-            </View>
-          ))}
-
-          <Text style={styles.heading}>
-            API Data (JSONPlaceholder Posts)
-          </Text>
-        </>
-      }
-      data={posts}
-      
-      keyExtractor={item => item.id.toString()}
-      renderItem={({item}) => (
-        <View style={styles.card}>
-          <Text style={styles.title}>
-            {item.title}
-          </Text>
-
-          <Text style={styles.body}>
-            {item.body}
-          </Text>
-        </View>
-      )}
-    />
+    <View style={{ flex: 1 }}>
+      <FlatList<Post>
+        data={posts}
+        ListHeaderComponent={
+          <>
+            <Text style={styles.heading}>API Data (JSONPlaceholder Posts)</Text>
+            {elapsedMs != null && <Text style={styles.sub}>Last fetch: {elapsedMs} ms</Text>}
+          </>
+        }
+        keyExtractor={item => item.id.toString()}
+        renderItem={({ item }) => (
+          <View style={styles.card}>
+            <Text style={styles.title}>{item.title}</Text>
+            <Text style={styles.body}>{item.body}</Text>
+          </View>
+        )}
+        onEndReached={onEndReached}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={loading ? <ActivityIndicator style={{ margin: 12 }} /> : null}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      />
+    </View>
   );
 };
 

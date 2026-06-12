@@ -3,10 +3,14 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 
 import { useAuth } from '../../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
+import { AppStackParamList } from '../../navigation/AppStack';
 const DashboardScreen = () => {
   const { logout } = useAuth();
-  const navigation = useNavigation();
-
+  const navigation =
+    useNavigation<NativeStackNavigationProp<AppStackParamList>>();
+  navigation.navigate('DemoListView');
   return (
     <View style={styles.container}>
       <Text style={styles.heading}>Employee Dashboard</Text>
@@ -40,7 +44,8 @@ const DashboardScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    paddingHorizontal: 24,
+    paddingTop: 24,
     backgroundColor: '#F5F5F5',
   },
 
@@ -52,9 +57,9 @@ const styles = StyleSheet.create({
 
   card: {
     backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 12,
     elevation: 4,
+    padding: 24,
+    borderRadius: 16,
   },
 
   name: {
@@ -68,12 +73,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#E53935',
     padding: 15,
     borderRadius: 10,
+    paddingVertical: 16,
   },
   listButton: {
     marginTop: 20,
     backgroundColor: '#1976D2',
     padding: 15,
     borderRadius: 10,
+    paddingVertical: 16,
   },
   logoutText: {
     color: '#fff',
