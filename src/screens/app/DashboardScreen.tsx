@@ -8,6 +8,8 @@ import {
   Dimensions,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
+import { useDrawer } from '../../context/DrawerContext';
+import LogoContainer from '../../components/LogoContainer';
 
 const { width } = Dimensions.get('window');
 
@@ -68,6 +70,7 @@ const ActionCard: React.FC<{ item: CardItem }> = ({ item: d }) => (
 /* ─── Screen ──────────────────────────────────────────────────────── */
 const DashboardScreen = () => {
   const { logout } = useAuth();
+  const { toggle } = useDrawer();
   const today = new Date().toLocaleDateString('en-GB', {
     weekday: 'long',
     day: 'numeric',
@@ -78,13 +81,16 @@ const DashboardScreen = () => {
     <ScrollView style={styles.root} showsVerticalScrollIndicator={false}>
       {/* Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>Welcome back</Text>
-          <Text style={styles.name}>John Smith</Text>
+        <View style={styles.headerTopRow}>
+          <TouchableOpacity onPress={toggle} style={styles.hamburger} accessibilityRole="button" accessibilityLabel="Open menu">
+            <Text style={styles.hamburgerIcon}>☰</Text>
+          </TouchableOpacity>
+          <View style={styles.dateChip}>
+            <Text style={styles.dateTxt}>{today}</Text>
+          </View>
         </View>
-        <View style={styles.dateChip}>
-          <Text style={styles.dateTxt}>{today}</Text>
-        </View>
+        <Text style={styles.greeting}>Welcome back</Text>
+        <Text style={styles.name}>John Smith</Text>
       </View>
 
       {/* Quick Stats */}
@@ -149,9 +155,19 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 20,
     paddingHorizontal: 20,
+  },
+  headerTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  hamburger: {
+    padding: 4,
+  },
+  hamburgerIcon: {
+    fontSize: 22,
+    color: COLORS.white,
   },
   greeting: { fontSize: 14, color: 'rgba(255,255,255,0.72)' },
   name: { fontSize: 22, fontWeight: '700', color: COLORS.white },

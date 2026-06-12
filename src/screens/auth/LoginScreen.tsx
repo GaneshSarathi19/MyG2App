@@ -5,8 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -15,8 +13,22 @@ import {
 } from 'react-native';
 
 import { useAuth } from '../../context/AuthContext';
+import ErrorView from '../../components/ErrorView';
+import LogoContainer from '../../components/LogoContainer';
 
 const EMAIL_REGEX = /^[\w-.]+@[\w-]+\.[A-Za-z]{2,}$/;
+
+/* ─── Dashboard Palette ──────────────────────────────────────────── */
+const COLORS = {
+  red: '#C5122C',
+  navy: '#003C64',
+  orange: '#F86F18',
+  gray: '#706B6B',
+  subtle: '#F5F6F8',
+  white: '#FFFFFF',
+  dark: '#1A1A2E',
+  inputBorder: '#D9DEE7',
+};
 
 const LoginScreen = () => {
   const { login } = useAuth();
@@ -37,6 +49,7 @@ const LoginScreen = () => {
   }>({});
 
   const [loading, setLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   const validate = () => {
     const newErrors: {
@@ -50,13 +63,11 @@ const LoginScreen = () => {
       username.includes('@') &&
       !EMAIL_REGEX.test(username)
     ) {
-      newErrors.username =
-        'Enter a valid email address';
+      newErrors.username = 'Enter a valid email address';
     }
 
     if (!password.trim()) {
-      newErrors.password =
-        'Password is required';
+      newErrors.password = 'Password is required';
     }
 
     return newErrors;
@@ -64,6 +75,7 @@ const LoginScreen = () => {
 
   const handleLogin = () => {
     setLoading(true);
+    setLoginError(null);
 
     const validation = validate();
 
@@ -87,24 +99,21 @@ const LoginScreen = () => {
       password === '1234'
     ) {
       setLoading(false);
-
       setErrors({});
-
       setTouched({
         username: false,
         password: false,
       });
-
       login();
       return;
     }
 
     setLoading(false);
+    setLoginError('Invalid Username or Password');
+  };
 
-    Alert.alert(
-      'Login Failed',
-      'Invalid Username or Password'
-    );
+  const clearLoginError = () => {
+    setLoginError(null);
   };
 
   return (
@@ -126,17 +135,29 @@ const LoginScreen = () => {
           }
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.card}>
-            <Text style={styles.title}>
-              Employee Portal
-            </Text>
+          {/* Top decorative banner */}
+          <View style={styles.banner}>
+            <View style={styles.bannerAccent} />
+          </View>
 
-            <Text style={styles.subtitle}>
-              Sign in to continue
-            </Text>
+          <View style={styles.card}>
+            <LogoContainer
+              variant="full"
+              // TODO: swap placeholder with real logo PNG
+              source={require('../../resources/g2logo-small.png')}
+            />
+
+            {loginError && (
+              <View style={styles.errorWrap}>
+                <ErrorView message={loginError} onRetry={clearLoginError} />
+              </View>
+            )}
 
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                touched.username && errors.username && styles.inputError,
+              ]}
               placeholder="Username"
               placeholderTextColor="#9CA3AF"
               value={username}
@@ -145,7 +166,7 @@ const LoginScreen = () => {
               autoCorrect={false}
               returnKeyType="done"
               onFocus={() => {
-                setTouched(prev => ({
+                setTouched((prev) => ({
                   ...prev,
                   username: true,
                 }));
@@ -159,7 +180,12 @@ const LoginScreen = () => {
               </Text>
             ) : null}
 
-            <View style={styles.passwordContainer}>
+            <View
+              style={[
+                styles.passwordContainer,
+                touched.password && errors.password && styles.inputError,
+              ]}
+            >
               <TextInput
                 style={styles.passwordInput}
                 placeholder="Password"
@@ -173,7 +199,7 @@ const LoginScreen = () => {
                   handleLogin
                 }
                 onFocus={() => {
-                  setTouched(prev => ({
+                  setTouched((prev) => ({
                     ...prev,
                     password: true,
                   }));
@@ -216,16 +242,16 @@ const LoginScreen = () => {
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator
-                  color="#FFFFFF"
-                />
+                <Text style={styles.loginButtonText}>
+                  Signing in…
+                </Text>
               ) : (
                 <Text
                   style={
                     styles.loginButtonText
                   }
                 >
-                  Login
+                  Sign In
                 </Text>
               )}
             </TouchableOpacity>
@@ -247,7 +273,7 @@ const LoginScreen = () => {
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
-    backgroundColor: '#F3F6FA',
+    backgroundColor: COLORS.subtle,
   },
 
   scrollContainer: {
@@ -256,103 +282,151 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
   },
 
+  /* ── Top banner ────────────────────────────────────────────────── */
+  banner: {
+    height: 6,
+    backgroundColor: COLORS.navy,
+    marginHorizontal: 20,
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 4,
+    overflow: 'hidden',
+    flexDirection: 'row',
+  },
+  bannerAccent: {
+    width: '33%',
+    height: '100%',
+    backgroundColor: COLORS.orange,
+  },
+
+  /* ── Card ───────────────────────────────────────────────────────── */
   card: {
     marginHorizontal: 20,
     padding: 24,
-    borderRadius: 20,
-    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    backgroundColor: COLORS.white,
 
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 4,
     },
     shadowOpacity: 0.08,
-    shadowRadius: 8,
+    shadowRadius: 12,
 
-    elevation: 4,
+    elevation: 5,
+  },
+
+  brandWrap: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  brandIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    backgroundColor: COLORS.navy,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  brandIconText: {
+    color: COLORS.white,
+    fontSize: 18,
+    fontWeight: '800',
   },
 
   title: {
-    fontSize: 30,
-    fontWeight: '700',
+    fontSize: 26,
+    fontWeight: '800',
     textAlign: 'center',
-    color: '#111827',
-    marginBottom: 8,
+    color: COLORS.dark,
+    marginBottom: 4,
   },
 
   subtitle: {
-    fontSize: 15,
+    fontSize: 14,
     textAlign: 'center',
-    color: '#6B7280',
-    marginBottom: 32,
+    color: COLORS.gray,
+    marginBottom: 0,
   },
 
+  /* ── Inputs ──────────────────────────────────────────────────────── */
   input: {
-    height: 56,
+    height: 52,
     borderWidth: 1,
-    borderColor: '#D9DEE7',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF',
-    fontSize: 16,
-    marginBottom: 8,
+    borderColor: COLORS.inputBorder,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    backgroundColor: COLORS.white,
+    fontSize: 15,
+    color: COLORS.dark,
+    marginBottom: 6,
+  },
+  inputError: {
+    borderColor: COLORS.red,
   },
 
   passwordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 56,
+    height: 52,
     borderWidth: 1,
-    borderColor: '#D9DEE7',
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
+    borderColor: COLORS.inputBorder,
+    borderRadius: 10,
+    backgroundColor: COLORS.white,
+    paddingHorizontal: 14,
+    marginTop: 8,
   },
 
   passwordInput: {
     flex: 1,
-    fontSize: 16,
-    color: '#111827',
+    fontSize: 15,
+    color: COLORS.dark,
   },
 
   toggleText: {
-    color: '#2563EB',
-    fontWeight: '600',
+    color: COLORS.navy,
+    fontWeight: '700',
+    fontSize: 13,
   },
 
   errorText: {
-    color: '#DC2626',
-    marginTop: 4,
-    marginBottom: 12,
-    fontSize: 13,
+    color: COLORS.red,
+    marginTop: 2,
+    marginBottom: 8,
+    fontSize: 12,
+    fontWeight: '500',
   },
 
+  errorWrap: {
+    marginBottom: 16,
+  },
+
+  /* ── Button ───────────────────────────────────────────────────────── */
   loginButton: {
-    height: 56,
-    borderRadius: 12,
-    backgroundColor: '#2563EB',
+    height: 52,
+    borderRadius: 10,
+    backgroundColor: COLORS.navy,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 24,
+    marginTop: 16,
   },
-
   loginButtonDisabled: {
     opacity: 0.7,
   },
-
   loginButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+    color: COLORS.white,
+    fontSize: 15,
+    fontWeight: '700',
   },
 
+  /* ── Demo ────────────────────────────────────────────────────────── */
   demoText: {
     marginTop: 20,
     textAlign: 'center',
-    color: '#6B7280',
-    fontSize: 13,
-    lineHeight: 20,
+    color: COLORS.gray,
+    fontSize: 12,
+    lineHeight: 18,
   },
 });
 
