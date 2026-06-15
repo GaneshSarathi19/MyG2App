@@ -18,7 +18,7 @@ import LogoContainer from '../../components/LogoContainer';
 
 const EMAIL_REGEX = /^[\w-.]+@[\w-]+\.[A-Za-z]{2,}$/;
 
-/* ─── Dashboard Palette ──────────────────────────────────────────── */
+/* ─── Colors ───────────────────────────────────────────────────────── */
 const COLORS = {
   red: '#C5122C',
   navy: '#003C64',
@@ -59,10 +59,7 @@ const LoginScreen = () => {
 
     if (!username.trim()) {
       newErrors.username = 'Username is required';
-    } else if (
-      username.includes('@') &&
-      !EMAIL_REGEX.test(username)
-    ) {
+    } else if (username.includes('@') && !EMAIL_REGEX.test(username)) {
       newErrors.username = 'Enter a valid email address';
     }
 
@@ -75,12 +72,6 @@ const LoginScreen = () => {
 
   /**
    * Triggers the backend (or mock) login validation.
-   *
-   * - Runs client-side validation first.
-   * - Then calls `login(username, password)` from AuthContext,
-   *   which forwards to the auth service.
-   * - On success: navigates to the app stack (handled by RootNavigator).
-   * - On failure: displays the error message.
    */
   const handleLogin = async () => {
     setLoading(true);
@@ -95,10 +86,7 @@ const LoginScreen = () => {
 
     setErrors(validation);
 
-    if (
-      validation.username ||
-      validation.password
-    ) {
+    if (validation.username || validation.password) {
       setLoading(false);
       return;
     }
@@ -109,7 +97,6 @@ const LoginScreen = () => {
       if (!result.success) {
         setLoginError(result.message);
       } else {
-        // Clear UI state on successful login (isLoggedIn updated in AuthContext)
         setErrors({});
         setTouched({
           username: false,
@@ -117,13 +104,10 @@ const LoginScreen = () => {
         });
       }
     } catch (error) {
-      // ------------------------------------------------------------------- *
-      // Network or unexpected error during the API call.
-      // ------------------------------------------------------------------- *
       const message =
         error instanceof Error
           ? error.message
-          : 'Login failed — please try again.';
+          : 'Login failed - please try again.';
       setLoginError(message);
     } finally {
       setLoading(false);
@@ -141,16 +125,10 @@ const LoginScreen = () => {
     >
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={
-          Platform.OS === 'ios'
-            ? 'padding'
-            : 'height'
-        }
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
-          contentContainerStyle={
-            styles.scrollContainer
-          }
+          contentContainerStyle={styles.scrollContainer}
           keyboardShouldPersistTaps="handled"
         >
           {/* Top decorative banner */}
@@ -161,7 +139,6 @@ const LoginScreen = () => {
           <View style={styles.card}>
             <LogoContainer
               variant="full"
-              // TODO: swap placeholder with real logo PNG
               source={require('../../resources/g2logo-small.png')}
             />
 
@@ -191,11 +168,8 @@ const LoginScreen = () => {
               }}
             />
 
-            {touched.username &&
-            errors.username ? (
-              <Text style={styles.errorText}>
-                {errors.username}
-              </Text>
+            {touched.username && errors.username ? (
+              <Text style={styles.errorText}>{errors.username}</Text>
             ) : null}
 
             <View
@@ -213,9 +187,7 @@ const LoginScreen = () => {
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
                 returnKeyType="done"
-                onSubmitEditing={
-                  handleLogin
-                }
+                onSubmitEditing={handleLogin}
                 onFocus={() => {
                   setTouched((prev) => ({
                     ...prev,
@@ -225,61 +197,32 @@ const LoginScreen = () => {
               />
 
               <TouchableOpacity
-                onPress={() =>
-                  setShowPassword(
-                    !showPassword
-                  )
-                }
+                onPress={() => setShowPassword(!showPassword)}
               >
-                <Text
-                  style={
-                    styles.toggleText
-                  }
-                >
-                  {showPassword
-                    ? 'Hide'
-                    : 'Show'}
+                <Text style={styles.toggleText}>
+                  {showPassword ? 'Hide' : 'Show'}
                 </Text>
               </TouchableOpacity>
             </View>
 
-            {touched.password &&
-            errors.password ? (
-              <Text style={styles.errorText}>
-                {errors.password}
-              </Text>
+            {touched.password && errors.password ? (
+              <Text style={styles.errorText}>{errors.password}</Text>
             ) : null}
 
             <TouchableOpacity
-              style={[
-                styles.loginButton,
-                loading &&
-                  styles.loginButtonDisabled,
-              ]}
+              style={[styles.loginButton, loading && styles.loginButtonDisabled]}
               onPress={handleLogin}
               disabled={loading}
             >
               {loading ? (
-                <Text style={styles.loginButtonText}>
-                  Signing in…
-                </Text>
+                <Text style={styles.loginButtonText}>Signing in...</Text>
               ) : (
-                <Text
-                  style={
-                    styles.loginButtonText
-                  }
-                >
-                  Sign In
-                </Text>
+                <Text style={styles.loginButtonText}>Sign In</Text>
               )}
             </TouchableOpacity>
 
             <Text style={styles.demoText}>
-              Demo Credentials:
-              {'\n'}
-              Username: admin
-              {'\n'}
-              Password: 1234
+              Demo Credentials:{'\n'}Username: admin{'\n'}Password: 1234
             </Text>
           </View>
         </ScrollView>
@@ -300,7 +243,6 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
   },
 
-  /* ── Top banner ────────────────────────────────────────────────── */
   banner: {
     height: 6,
     backgroundColor: COLORS.navy,
@@ -316,59 +258,18 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.orange,
   },
 
-  /* ── Card ───────────────────────────────────────────────────────── */
   card: {
     marginHorizontal: 20,
     padding: 24,
     borderRadius: 16,
     backgroundColor: COLORS.white,
-
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
-
     elevation: 5,
   },
 
-  brandWrap: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  brandIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 14,
-    backgroundColor: COLORS.navy,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  brandIconText: {
-    color: COLORS.white,
-    fontSize: 18,
-    fontWeight: '800',
-  },
-
-  title: {
-    fontSize: 26,
-    fontWeight: '800',
-    textAlign: 'center',
-    color: COLORS.dark,
-    marginBottom: 4,
-  },
-
-  subtitle: {
-    fontSize: 14,
-    textAlign: 'center',
-    color: COLORS.gray,
-    marginBottom: 0,
-  },
-
-  /* ── Inputs ──────────────────────────────────────────────────────── */
   input: {
     height: 52,
     borderWidth: 1,
@@ -420,7 +321,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
 
-  /* ── Button ───────────────────────────────────────────────────────── */
   loginButton: {
     height: 52,
     borderRadius: 10,
@@ -438,7 +338,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  /* ── Demo ────────────────────────────────────────────────────────── */
   demoText: {
     marginTop: 20,
     textAlign: 'center',

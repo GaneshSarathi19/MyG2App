@@ -1,81 +1,39 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  ReactNode,
-} from 'react';
-import {
-  validateLoginMock,
-} from '../services/AuthService';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { validateLogin } from '../services/AuthService';
 import { LoginUserData } from '../api/interfaces/AuthTypes';
 
-// --------------------------------------------------------------------------- *
-// TODO: When the real backend is ready, replace `validateLoginMock`
-//       with `validateLogin` from '../services/AuthService'.
-// --------------------------------------------------------------------------- *
+/* ── Types ────────────────────────────────────────────────────────────── */
 
-/* ── Types ──────────────────────────────────────────────────────────────── */
-
-/**
- * Extended authentication state including the JWT token and user profile
- * returned by the backend.
- */
 interface AuthContextType {
-  /** Whether the user is currently authenticated. */
   isLoggedIn: boolean;
-
-  /** Authenticates with the backend API using username + password. */
   login: (username: string, password: string) => Promise<LoginResult>;
-
-  /** Clears all auth state (token + user profile). */
   logout: () => void;
-
-  /** The JWT / session token returned by the backend. */
   authToken: string | null;
-
-  /** User profile data returned on a successful login. */
   user: LoginUserData | null;
 }
 
-/** Result shape of the `login` call. */
 export interface LoginResult {
-  /** Whether the login was successful. */
   success: boolean;
-  /** Human-readable message from the backend or a fallback. */
   message: string;
 }
 
-/* ── Context ────────────────────────────────────────────────────────────── */
+/* ── Context ──────────────────────────────────────────────────────────── */
 
-const AuthContext = createContext<AuthContextType>(
-  {} as AuthContextType,
-);
+const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
-export const AuthProvider = ({
-  children,
-}: {
-  children: ReactNode;
-}) => {
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [user, setUser] = useState<LoginUserData | null>(null);
 
   /**
-   * Calls the backend (or mock) to validate credentials.
-   *
-   * @param username - The username / email.
-   * @param password - The user's password.
-   * @returns A `LoginResult` describing the outcome.
+   * Calls the backend to validate credentials.
    */
   const login = async (
     username: string,
     password: string,
   ): Promise<LoginResult> => {
-    /*
-     * TODO: Replace `validateLoginMock` with `validateLogin` once
-     * the real backend is configured. See `src/services/AuthService.ts`.
-     */
-    const response = await validateLoginMock(username, password);
+    const response = await validateLogin(username, password);
 
     if (response.IsSuccess && response.Data.length > 0) {
       const userData = response.Data[0];

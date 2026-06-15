@@ -7,7 +7,7 @@ import CryptoJS from 'crypto-js';
  * This is the exact CryptoJS implementation used by the backend.
  *
  * @param password - The raw user password.
- * @returns The encrypted password as a hex string (no Salt / no IV prepended).
+ * @returns The encrypted password as a Base64 string (no Salt / no IV prepended).
  */
 export function encryptPassword(password: string): string {
   const key = CryptoJS.enc.Utf8.parse('11ebf1673f3a4c08813e10851346ba06');
@@ -24,7 +24,7 @@ export function encryptPassword(password: string): string {
     },
   );
 
-  // Convert the word-array result to a hex string so the backend can
-  // decrypt it with the same key/iv.
-  return encrypted.ciphertext.toString(CryptoJS.enc.Hex);
+  // Return ciphertext as Base64 so the backend can decrypt it
+  // with the same key/iv.
+  return encrypted.ciphertext.toString(CryptoJS.enc.Base64);
 }

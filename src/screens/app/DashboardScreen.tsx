@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useDrawer } from '../../context/DrawerContext';
-import LogoContainer from '../../components/LogoContainer';
+
 
 const { width } = Dimensions.get('window');
 
