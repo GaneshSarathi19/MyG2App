@@ -45,8 +45,8 @@ const CARDS: CardItem[] = [
   { id: 'news', title: 'News & Announcements', sub: 'Company updates', abbr: 'N', color: COLORS.orange, badge: 2 },
 ];
 
-const STATS = [
-  { label: 'Status', value: 'Present', color: COLORS.navy },
+const buildStats = (department: string | undefined) => [
+  { label: 'Department', value: department || '-', color: COLORS.navy },
   { label: 'Pending Leaves', value: '2', color: COLORS.orange },
   { label: 'Meetings Today', value: '5', color: COLORS.red },
 ];
@@ -67,9 +67,19 @@ const ActionCard: React.FC<{ item: CardItem }> = ({ item: d }) => (
   </TouchableOpacity>
 );
 
+/**
+ * Returns a time-of-day greeting based on the current hour.
+ */
+const getGreeting = (): string => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+};
+
 /* ─── Screen ──────────────────────────────────────────────────────── */
 const DashboardScreen = () => {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const { toggle } = useDrawer();
   const today = new Date().toLocaleDateString('en-GB', {
     weekday: 'long',
@@ -89,13 +99,14 @@ const DashboardScreen = () => {
             <Text style={styles.dateTxt}>{today}</Text>
           </View>
         </View>
-        <Text style={styles.greeting}>Welcome back</Text>
-        <Text style={styles.name}>John Smith</Text>
+        <Text style={styles.greeting}>{getGreeting()},</Text>
+        <Text style={styles.name}>{user?.FirstName || 'User'}</Text>
+        <Text style={styles.designation}>{user?.Designation || ''}</Text>
       </View>
 
       {/* Quick Stats */}
       <View style={styles.statsRow}>
-        {STATS.map((s) => (
+        {buildStats(user?.Department).map((s) => (
           <View key={s.label} style={styles.statBox}>
             <Text style={styles.statValue}>{s.value}</Text>
             <Text style={styles.statLabel}>{s.label}</Text>
@@ -171,6 +182,7 @@ const styles = StyleSheet.create({
   },
   greeting: { fontSize: 14, color: 'rgba(255,255,255,0.72)' },
   name: { fontSize: 22, fontWeight: '700', color: COLORS.white },
+  designation: { fontSize: 13, color: 'rgba(255,255,255,0.60)', marginTop: 2 },
   dateChip: {
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.25)',
