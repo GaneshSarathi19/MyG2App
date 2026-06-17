@@ -3,15 +3,19 @@ import {NavigationContainer} from '@react-navigation/native';
 
 import AuthStack from './AuthStack';
 import AppStack from './AppStack';
-
-import {useAuth} from '../context/AuthContext';
+import {useAppSelector} from '../redux/hooks';
+import {DrawerProvider} from '../context/DrawerContext';
+import SidePanel from '../components/SidePanel';
 
 const RootNavigator = () => {
-  const {isLoggedIn} = useAuth();
+  const isLoggedIn = useAppSelector(state => state.auth?.isLoggedIn ?? false);
 
   return (
     <NavigationContainer>
-      {isLoggedIn ? <AppStack /> : <AuthStack />}
+      <DrawerProvider>
+        {isLoggedIn ? <AppStack /> : <AuthStack />}
+        <SidePanel />
+      </DrawerProvider>
     </NavigationContainer>
   );
 };
