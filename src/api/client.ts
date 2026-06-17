@@ -44,7 +44,7 @@ export const post = async <T>(
   logger.log(`[API Request Body]`, JSON.stringify(body, null, 2));
 
   try {
-    const response = await fetch(url, {
+    const response = await fetch(url, {//axios
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

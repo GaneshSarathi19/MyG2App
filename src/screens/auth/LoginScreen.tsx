@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, {useState} from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
   Keyboard,
 } from 'react-native';
 
-import { useAuth } from '../../context/AuthContext';
+import {useAuth} from '../../context/AuthContext';
 import ErrorView from '../../components/ErrorView';
 import LogoContainer from '../../components/LogoContainer';
 
@@ -31,10 +31,11 @@ const COLORS = {
 };
 
 const LoginScreen = () => {
-  const { login } = useAuth();
+  const {login, isLoading, error: authError, clearAuthError} = useAuth();
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
 
   const [touched, setTouched] = useState({
     username: false,
@@ -47,9 +48,6 @@ const LoginScreen = () => {
     username?: string;
     password?: string;
   }>({});
-
-  const [loading, setLoading] = useState(false);
-  const [loginError, setLoginError] = useState<string | null>(null);
 
   const validate = () => {
     const newErrors: {
@@ -71,12 +69,9 @@ const LoginScreen = () => {
   };
 
   /**
-   * Triggers the backend (or mock) login validation.
+   * Triggers the backend login validation.
    */
   const handleLogin = async () => {
-    setLoading(true);
-    setLoginError(null);
-
     const validation = validate();
 
     setTouched({
@@ -87,35 +82,26 @@ const LoginScreen = () => {
     setErrors(validation);
 
     if (validation.username || validation.password) {
-      setLoading(false);
       return;
     }
 
     try {
-      const result = await login(username, password);
+      const result = await login(username, password, rememberMe);
 
-      if (!result.success) {
-        setLoginError(result.message);
-      } else {
+      if (result.success) {
         setErrors({});
         setTouched({
           username: false,
           password: false,
         });
       }
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Login failed - please try again.';
-      setLoginError(message);
-    } finally {
-      setLoading(false);
+    } catch {
+      // Error is handled in the Redux slice; nothing to do here.
     }
   };
 
   const clearLoginError = () => {
-    setLoginError(null);
+    clearAuthError();
   };
 
   return (
@@ -142,9 +128,9 @@ const LoginScreen = () => {
               source={require('../../resources/g2logo-small.png')}
             />
 
-            {loginError && (
+            {authError && (
               <View style={styles.errorWrap}>
-                <ErrorView message={loginError} onRetry={clearLoginError} />
+                <ErrorView message={authError} onRetry={clearLoginError} />
               </View>
             )}
 
@@ -161,7 +147,7 @@ const LoginScreen = () => {
               autoCorrect={false}
               returnKeyType="done"
               onFocus={() => {
-                setTouched((prev) => ({
+                setTouched(prev => ({
                   ...prev,
                   username: true,
                 }));
@@ -189,7 +175,7 @@ const LoginScreen = () => {
                 returnKeyType="done"
                 onSubmitEditing={handleLogin}
                 onFocus={() => {
-                  setTouched((prev) => ({
+                  setTouched(prev => ({
                     ...prev,
                     password: true,
                   }));
@@ -209,12 +195,29 @@ const LoginScreen = () => {
               <Text style={styles.errorText}>{errors.password}</Text>
             ) : null}
 
+            {/* Remember Me */}
             <TouchableOpacity
-              style={[styles.loginButton, loading && styles.loginButtonDisabled]}
-              onPress={handleLogin}
-              disabled={loading}
+              style={styles.rememberMeRow}
+              onPress={() => setRememberMe(!rememberMe)}
+              activeOpacity={0.7}
             >
-              {loading ? (
+              <View
+                style={[
+                  styles.checkbox,
+                  rememberMe && styles.checkboxChecked,
+                ]}
+              >
+                {rememberMe && <Text style={styles.checkmark}>✓</Text>}
+              </View>
+              <Text style={styles.rememberMeText}>Remember me</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
+              onPress={handleLogin}
+              disabled={isLoading}
+            >
+              {isLoading ? (
                 <Text style={styles.loginButtonText}>Signing in...</Text>
               ) : (
                 <Text style={styles.loginButtonText}>Sign In</Text>
@@ -222,7 +225,7 @@ const LoginScreen = () => {
             </TouchableOpacity>
 
             <Text style={styles.demoText}>
-              Demo Credentials:{'\n'}Username: admin{'\n'}Password: 1234
+              Demo Credentials:{"\n"}Username: admin{"\n"}Password: 1234
             </Text>
           </View>
         </ScrollView>
@@ -264,7 +267,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: COLORS.white,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: {width: 0, height: 4},
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 5,
@@ -319,6 +322,36 @@ const styles = StyleSheet.create({
 
   errorWrap: {
     marginBottom: 16,
+  },
+
+  // Remember Me
+  rememberMeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: COLORS.navy,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  checkboxChecked: {
+    backgroundColor: COLORS.navy,
+  },
+  checkmark: {
+    color: COLORS.white,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  rememberMeText: {
+    fontSize: 14,
+    color: COLORS.dark,
   },
 
   loginButton: {

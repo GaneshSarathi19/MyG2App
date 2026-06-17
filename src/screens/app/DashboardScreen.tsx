@@ -7,8 +7,9 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
-import { useAuth } from '../../context/AuthContext';
-import { useDrawer } from '../../context/DrawerContext';
+import {useAppSelector, useAppDispatch} from '../../redux/hooks';
+import {logout} from '../../redux/slices/authSlice';
+import {useDrawer} from '../../context/DrawerContext';
 
 
 const { width } = Dimensions.get('window');
@@ -79,8 +80,9 @@ const getGreeting = (): string => {
 
 /* ─── Screen ──────────────────────────────────────────────────────── */
 const DashboardScreen = () => {
-  const { logout, user } = useAuth();
-  const { toggle } = useDrawer();
+  const dispatch = useAppDispatch();
+  const user = useAppSelector(state => state.auth.user);
+  const {toggle} = useDrawer();
   const today = new Date().toLocaleDateString('en-GB', {
     weekday: 'long',
     day: 'numeric',
@@ -147,7 +149,11 @@ const DashboardScreen = () => {
       </View>
 
       {/* Logout */}
-      <TouchableOpacity style={styles.logoutBtn} onPress={logout} activeOpacity={0.8}>
+      <TouchableOpacity
+        style={styles.logoutBtn}
+        onPress={() => dispatch(logout())}
+        activeOpacity={0.8}
+      >
         <Text style={styles.logoutText}>Logout</Text>
       </TouchableOpacity>
     </ScrollView>
@@ -158,10 +164,10 @@ const DashboardScreen = () => {
 const COL_WIDTH = Math.floor((width - 48) / 2);
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.subtle },
+  root: { flex: 1, backgroundColor: COLORS.subtle, marginBottom: 55 },
 
   // Header
-  header: {
+  header: {//sticky
     backgroundColor: COLORS.navy,
     paddingTop: 16,
     paddingBottom: 20,
@@ -283,11 +289,11 @@ const styles = StyleSheet.create({
   logoutBtn: {
     marginHorizontal: 16,
     marginTop: 20,
-    marginBottom: 32,
     backgroundColor: COLORS.red,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
+    
   },
   logoutText: { color: COLORS.white, fontSize: 15, fontWeight: '700' },
 });
