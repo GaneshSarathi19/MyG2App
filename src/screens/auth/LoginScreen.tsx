@@ -11,24 +11,15 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
 } from 'react-native';
-
+import { Colors, Fonts } from '../../theme';
 import {useAuth} from '../../context/AuthContext';
 import ErrorView from '../../components/ErrorView';
 import LogoContainer from '../../components/LogoContainer';
+import AppScreen from '../../components/layout/AppScreen';
 
 const EMAIL_REGEX = /^[\w-.]+@[\w-]+\.[A-Za-z]{2,}$/;
 
 /* ─── Colors ───────────────────────────────────────────────────────── */
-const COLORS = {
-  red: '#C5122C',
-  navy: '#003C64',
-  orange: '#F86F18',
-  gray: '#706B6B',
-  subtle: '#F5F6F8',
-  white: '#FFFFFF',
-  dark: '#1A1A2E',
-  inputBorder: '#D9DEE7',
-};
 
 const LoginScreen = () => {
   const {login, isLoading, error: authError, clearAuthError} = useAuth();
@@ -105,6 +96,7 @@ const LoginScreen = () => {
   };
 
   return (
+    <AppScreen>
     <TouchableWithoutFeedback
       accessible={false}
       onPress={Keyboard.dismiss}
@@ -231,13 +223,14 @@ const LoginScreen = () => {
         </ScrollView>
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
+  </AppScreen>
   );
 };
 
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
-    backgroundColor: COLORS.subtle,
+    backgroundColor: Colors.subtle,
   },
 
   scrollContainer: {
@@ -248,7 +241,7 @@ const styles = StyleSheet.create({
 
   banner: {
     height: 6,
-    backgroundColor: COLORS.navy,
+    backgroundColor: Colors.primary,
     marginHorizontal: 20,
     borderTopLeftRadius: 4,
     borderTopRightRadius: 4,
@@ -258,14 +251,14 @@ const styles = StyleSheet.create({
   bannerAccent: {
     width: '33%',
     height: '100%',
-    backgroundColor: COLORS.orange,
+    backgroundColor: Colors.accent,
   },
 
   card: {
     marginHorizontal: 20,
     padding: 24,
     borderRadius: 16,
-    backgroundColor: COLORS.white,
+    backgroundColor: Colors.background,
     shadowColor: '#000',
     shadowOffset: {width: 0, height: 4},
     shadowOpacity: 0.08,
@@ -276,16 +269,16 @@ const styles = StyleSheet.create({
   input: {
     height: 52,
     borderWidth: 1,
-    borderColor: COLORS.inputBorder,
+    borderColor: Colors.inputBorder,
     borderRadius: 10,
     paddingHorizontal: 14,
-    backgroundColor: COLORS.white,
+    backgroundColor: Colors.background,
     fontSize: 15,
-    color: COLORS.dark,
+    color: Colors.dark,
     marginBottom: 6,
   },
   inputError: {
-    borderColor: COLORS.red,
+    borderColor: Colors.danger,
   },
 
   passwordContainer: {
@@ -293,9 +286,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     height: 52,
     borderWidth: 1,
-    borderColor: COLORS.inputBorder,
+    borderColor: Colors.inputBorder,
     borderRadius: 10,
-    backgroundColor: COLORS.white,
+    backgroundColor: Colors.background,
     paddingHorizontal: 14,
     marginTop: 8,
   },
@@ -303,17 +296,17 @@ const styles = StyleSheet.create({
   passwordInput: {
     flex: 1,
     fontSize: 15,
-    color: COLORS.dark,
+    color: Colors.dark,
   },
 
   toggleText: {
-    color: COLORS.navy,
+    color: Colors.primary,
     fontWeight: '700',
     fontSize: 13,
   },
 
   errorText: {
-    color: COLORS.red,
+    color: Colors.danger,
     marginTop: 2,
     marginBottom: 8,
     fontSize: 12,
@@ -357,7 +350,7 @@ const styles = StyleSheet.create({
   loginButton: {
     height: 52,
     borderRadius: 10,
-    backgroundColor: COLORS.navy,
+    backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 16,
@@ -366,7 +359,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   loginButtonText: {
-    color: COLORS.white,
+    color: Colors.background,
     fontSize: 15,
     fontWeight: '700',
   },
@@ -374,7 +367,7 @@ const styles = StyleSheet.create({
   demoText: {
     marginTop: 20,
     textAlign: 'center',
-    color: COLORS.gray,
+    color: Colors.textSecondary,
     fontSize: 12,
     lineHeight: 18,
   },

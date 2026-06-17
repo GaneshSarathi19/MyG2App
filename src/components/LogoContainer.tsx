@@ -6,6 +6,8 @@ import {
   StyleSheet,
   ViewStyle,
 } from 'react-native';
+import { Color } from 'react-native/types_generated/Libraries/Animated/AnimatedExports';
+import { Colors } from '../theme';
 
 /* ──────────────────────────────────────────────────────────────────
    LogoContainer
@@ -39,14 +41,6 @@ interface Props {
 }
 
 /* ── Corporate colour constants ── */
-const COLORS = {
-  navy: '#003C64',
-  orange: '#F86F18',
-  gray: '#706B6B',
-  white: '#FFFFFF',
-  dark: '#1A1A2E',
-  subtle: '#F5F6F8',
-};
 
 const LogoContainer: React.FC<Props> = ({ variant = 'full', source, style }) => {
   const isPlaceholder = !source;
@@ -120,7 +114,7 @@ const styles = StyleSheet.create({
 
   /* ── Logo box (background plate) ──────────────────────────────── */
   logoBox: {
-    backgroundColor: COLORS.white,
+    backgroundColor: Colors.background,
     justifyContent: 'center',
     alignItems: 'center',
 
@@ -144,7 +138,7 @@ const styles = StyleSheet.create({
   placeholderText: {
     fontSize: 22,
     fontWeight: '800',
-    color: COLORS.navy,
+    color: Colors.primary,
     letterSpacing: 1,
   },
 
@@ -152,7 +146,7 @@ const styles = StyleSheet.create({
   companyName: {
     fontSize: 18,
     fontWeight: '800',
-    color: COLORS.dark,
+    color: "#000000",
     textAlign: 'center',
     marginTop: 4,
     marginBottom: 4,
@@ -161,7 +155,7 @@ const styles = StyleSheet.create({
   },
   tagline: {
     fontSize: 13,
-    color: COLORS.gray,
+    color: "#706B6B",
     textAlign: 'center',
   },
 });
