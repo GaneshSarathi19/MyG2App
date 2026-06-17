@@ -329,22 +329,22 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: COLORS.navy,
+    borderColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
   },
   checkboxChecked: {
-    backgroundColor: COLORS.navy,
+    backgroundColor: Colors.primary,
   },
   checkmark: {
-    color: COLORS.white,
+    color: Colors.white,
     fontSize: 12,
     fontWeight: '700',
   },
   rememberMeText: {
     fontSize: 14,
-    color: COLORS.dark,
+    color: Colors.dark,
   },
 
   loginButton: {
