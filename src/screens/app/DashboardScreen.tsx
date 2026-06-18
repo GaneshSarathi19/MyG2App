@@ -1,4 +1,5 @@
 import React from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -12,10 +13,10 @@ import {logout} from '../../redux/slices/authSlice';
 import {useDrawer} from '../../context/DrawerContext';
 import { Colors } from '../../theme';
 import AppScreen from '../../components/layout/AppScreen';
+import { useNavigation } from '@react-navigation/native';
 /* ─── Styles ──────────────────────────────────────────────────────── */
 const screenWidth = Dimensions.get('window').width;
 const COL_WIDTH = Math.floor((screenWidth - 48) / 2);
-
 
 /* ─── Data ────────────────────────────────────────────────────────── */
 interface CardItem {
@@ -26,7 +27,6 @@ interface CardItem {
   colors: string;
   badge?: number;
 }
- 
 const CARDS: CardItem[] = [
   { id: 'attendance', title: 'Attendance', sub: 'Check-in & logs', abbr: 'A', colors: Colors.danger, badge: 1 },
   { id: 'leave', title: 'Apply Leave', sub: 'Request time off', abbr: 'L', colors: Colors.primary },
@@ -46,20 +46,59 @@ const buildStats = (department: string | undefined) => [
 ];
 
 
-const ActionCard: React.FC<{ item: CardItem }> = ({ item: d }) => (
-  <TouchableOpacity style={styles.card} activeOpacity={0.82}>
+const ActionCard: React.FC<{
+  item: CardItem;
+  onPress?: () => void;
+}> = ({ item: d, onPress }) => (
+  <TouchableOpacity
+    style={styles.card}
+    activeOpacity={0.82}
+    onPress={onPress}
+  >
     {d.badge !== undefined && (
-      <View style={[styles.badge, { backgroundColor: d.colors }]}>
-        <Text style={styles.badgeText}>{d.badge}</Text>
+      <View
+        style={[
+          styles.badge,
+          { backgroundColor: d.colors },
+        ]}
+      >
+        <Text style={styles.badgeText}>
+          {d.badge}
+        </Text>
       </View>
     )}
-    <View style={[styles.iconWrap, { backgroundColor: `${d.colors}10`, borderColor: `${d.colors}40` }]}>
-      <Text style={[styles.iconChar, { color: d.colors }]}>{d.abbr}</Text>
+
+    <View
+      style={[
+        styles.iconWrap,
+        {
+          backgroundColor: `${d.colors}10`,
+          borderColor: `${d.colors}40`,
+        },
+      ]}
+    >
+      <Text
+        style={[
+          styles.iconChar,
+          { color: d.colors },
+        ]}
+      >
+        {d.abbr}
+      </Text>
     </View>
-    <Text style={styles.cardTitle} numberOfLines={1}>{d.title}</Text>
-    <Text style={styles.cardSub}>{d.sub}</Text>
+
+    <Text
+      style={styles.cardTitle}
+      numberOfLines={1}
+    >
+      {d.title}
+    </Text>
+
+    <Text style={styles.cardSub}>
+      {d.sub}
+    </Text>
   </TouchableOpacity>
-);
+);;
  
 /**
  * Returns a time-of-day greeting based on the current hour.
@@ -73,9 +112,13 @@ const getGreeting = (): string => {
  
 /* ─── Screen ──────────────────────────────────────────────────────── */
 const DashboardScreen = () => {
+   const [isCompactHeader, setIsCompactHeader] =
+    useState(false);
   const dispatch = useAppDispatch();
   const user = useAppSelector(state => state.auth.user);
   const {toggle} = useDrawer();
+     const navigation = useNavigation<any>();
+
   const today = new Date().toLocaleDateString('en-GB', {
     weekday: 'long',
     day: 'numeric',
@@ -85,21 +128,63 @@ const DashboardScreen = () => {
   return (
     <AppScreen>
       {/* header */}
-          <View style={styles.header}>
-        <View style={styles.headerTopRow}>
-          <TouchableOpacity onPress={toggle} style={styles.hamburger} accessibilityRole="button" accessibilityLabel="Open menu">
-            <Text style={styles.hamburgerIcon}>☰</Text>
-          </TouchableOpacity>
-          <View style={styles.dateChip}>
-            <Text style={styles.dateTxt}>{today}</Text>
-          </View>
+<View style={styles.header}>
+  {isCompactHeader ? (
+    <View style={styles.compactHeader}>
+      <TouchableOpacity
+        onPress={toggle}
+        style={styles.hamburger}
+      >
+        <Text style={styles.hamburgerIcon}>
+          ☰
+        </Text>
+      </TouchableOpacity>
+
+      <Text style={styles.compactName}>
+        {getGreeting()}, {user?.FirstName}
+      </Text>
+    </View>
+  ) : (
+    <>
+      <View style={styles.headerTopRow}>
+        <TouchableOpacity
+          onPress={toggle}
+          style={styles.hamburger}
+        >
+          <Text style={styles.hamburgerIcon}>
+            ☰
+          </Text>
+        </TouchableOpacity>
+
+        <View style={styles.dateChip}>
+          <Text style={styles.dateTxt}>
+            {today}
+          </Text>
         </View>
-        <Text style={styles.greeting}>{getGreeting()},</Text>
-        <Text style={styles.name}>{user?.FirstName || 'User'}</Text>
-        <Text style={styles.designation}>{user?.Designation || ''}</Text>
       </View>
 
-    <ScrollView style={styles.root} showsVerticalScrollIndicator={false}>
+      <Text style={styles.greeting}>
+        {getGreeting()},
+      </Text>
+
+      <Text style={styles.name}>
+        {user?.FirstName}
+      </Text>
+
+      <Text style={styles.designation}>
+        {user?.Designation}
+      </Text>
+    </>
+  )}
+</View>
+    <ScrollView style={styles.root} showsVerticalScrollIndicator={false}
+     onScroll={(event) => {
+    const offset =
+      event.nativeEvent.contentOffset.y;
+
+    setIsCompactHeader(offset > 80);
+  }}
+  scrollEventThrottle={16}>
      
  
       {/* Quick Stats */}
@@ -117,9 +202,26 @@ const DashboardScreen = () => {
       <View style={styles.section}>
         <Text style={styles.heading}>Quick Actions</Text>
         <View style={styles.grid}>
-          {CARDS.map((c) => (
-            <ActionCard key={c.id} item={c} />
-          ))}
+        {CARDS.map((c) => (
+  <ActionCard
+    key={c.id}
+    item={c}
+    onPress={() => {
+      switch (c.id) {
+        case 'holiday':
+          navigation.navigate(
+            'HolidayCalendar',
+          );
+          break;
+
+        default:
+          console.log(
+            `${c.title} clicked`,
+          );
+      }
+    }}
+  />
+))}
         </View>
       </View>
  
@@ -178,6 +280,17 @@ const styles = StyleSheet.create({
 
   zIndex: 100,
 },
+compactHeader: {
+  flexDirection: 'row',
+  alignItems: 'center',
+},
+
+compactName: {
+  color: Colors.white,
+  fontSize: 16,
+  fontWeight: '700',
+  marginLeft: 12,
+},
   headerTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -227,11 +340,11 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     overflow: 'hidden',
   },
-  statValue: { fontSize: 20, fontWeight: '800', color: Colors.dark },
+  statValue: { fontSize: 20, fontWeight: '800', color: Colors.textPrimary },
   statLabel: { fontSize: 11, color: Colors.textSecondary, marginTop: 2, fontWeight: '500' },
   statBar: { position: 'absolute', top: 0, left: 0, right: 0, height: 3, borderTopLeftRadius: 12, borderTopRightRadius: 12 },
   section: { paddingHorizontal: 16, marginTop: 20 },
-  heading: { fontSize: 16, fontWeight: '700', color: Colors.dark, marginBottom: 12 },
+  heading: { fontSize: 16, fontWeight: '700', color: Colors.textPrimary, marginBottom: 12 },
 
   // Grid Cards
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
@@ -257,7 +370,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   iconChar: { fontSize: 14, fontWeight: '700' },
-  cardTitle: { fontSize: 13, fontWeight: '700', color: Colors.dark },
+  cardTitle: { fontSize: 13, fontWeight: '700', color: Colors.textPrimary },
   cardSub: { fontSize: 11, color: Colors.textSecondary, marginTop: 2 },
 
   // Badge
@@ -289,7 +402,7 @@ const styles = StyleSheet.create({
   },
   annDot: { width: 8, height: 8, borderRadius: 4, marginTop: 5, marginRight: 12 },
   annContent: { flex: 1 },
-  annTitle: { fontSize: 14, fontWeight: '700', color: Colors.dark, marginBottom: 4 },
+  annTitle: { fontSize: 14, fontWeight: '700', color: Colors.textPrimary, marginBottom: 4 },
   annDesc: { fontSize: 12, color: Colors.textSecondary, lineHeight: 18 },
   annTime: { fontSize: 11, color: '#A0A0A0', marginTop: 6 },
 
