@@ -66,6 +66,7 @@ const HOLIDAYS = {
       date: '01 May 2026',
       day: 'Friday',
     },
+    
   ],
 
   August: [

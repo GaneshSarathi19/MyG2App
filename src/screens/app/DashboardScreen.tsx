@@ -14,6 +14,8 @@ import {useDrawer} from '../../context/DrawerContext';
 import { Colors } from '../../theme';
 import AppScreen from '../../components/layout/AppScreen';
 import { useNavigation } from '@react-navigation/native';
+import HolidayBanner
+from '../../components/common/HolidayBanner';
 /* ─── Styles ──────────────────────────────────────────────────────── */
 const screenWidth = Dimensions.get('window').width;
 const COL_WIDTH = Math.floor((screenWidth - 48) / 2);
@@ -118,7 +120,9 @@ const DashboardScreen = () => {
   const user = useAppSelector(state => state.auth.user);
   const {toggle} = useDrawer();
      const navigation = useNavigation<any>();
-
+const [showHolidayBanner,
+setShowHolidayBanner] =
+useState(true);
   const today = new Date().toLocaleDateString('en-GB', {
     weekday: 'long',
     day: 'numeric',
@@ -185,7 +189,15 @@ const DashboardScreen = () => {
     setIsCompactHeader(offset > 80);
   }}
   scrollEventThrottle={16}>
-     
+     {showHolidayBanner && (
+  <HolidayBanner
+    title="🎄 Christmas Tomorrow"
+    subtitle="15 Hours Remaining"
+    onClose={() =>
+      setShowHolidayBanner(false)
+    }
+  />
+)}
  
       {/* Quick Stats */}
       <View style={styles.statsRow}>
@@ -246,14 +258,7 @@ const DashboardScreen = () => {
         </View>
       </View>
  
-      {/* Logout */}
-      <TouchableOpacity
-        style={styles.logoutBtn}
-        onPress={() => dispatch(logout())}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.logoutText}>Logout</Text>
-      </TouchableOpacity>
+
     </ScrollView>
     </AppScreen>
   );
@@ -407,17 +412,6 @@ compactName: {
   annTime: { fontSize: 11, color: '#A0A0A0', marginTop: 6 },
 
   // Logout
-  logoutBtn: {
-    marginHorizontal: 16,
-    marginTop: 20,
-    marginBottom: 32,
-    backgroundColor: Colors.danger,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    
-  },
-  logoutText: { color: Colors.white, fontSize: 15, fontWeight: '700' },
-});
 
+});
 export default DashboardScreen;
