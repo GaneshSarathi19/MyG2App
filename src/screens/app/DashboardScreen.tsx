@@ -221,15 +221,13 @@ useState(true);
     onPress={() => {
       switch (c.id) {
         case 'holiday':
-          navigation.navigate(
-            'HolidayCalendar',
-          );
+          navigation.navigate('HolidayCalendar');
           break;
-
+        case 'profile':
+          navigation.navigate('Profile');
+          break;
         default:
-          console.log(
-            `${c.title} clicked`,
-          );
+          console.log(`${c.title} clicked`);
       }
     }}
   />

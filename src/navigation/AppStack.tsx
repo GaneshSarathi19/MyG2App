@@ -3,6 +3,7 @@ import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import DashboardScreen from '../screens/app/DashboardScreen';
 import HolidayCalendarScreen
 from '../screens/app/HolidayCalendarScreen';
+import ProfileScreen from '../screens/app/ProfileScreen';
 const Stack = createNativeStackNavigator();
 
 const AppStack = () => {
@@ -15,6 +16,10 @@ const AppStack = () => {
       <Stack.Screen
         name="HolidayCalendar"
         component={HolidayCalendarScreen}
+      />
+      <Stack.Screen
+        name="Profile"
+        component={ProfileScreen}
       />
     </Stack.Navigator>
   );

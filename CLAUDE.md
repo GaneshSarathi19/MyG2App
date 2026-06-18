@@ -75,8 +75,32 @@ When designing UI/UX or frontend components:
 - Shared colors in `src/theme/colors.ts`.
 - Login and dashboard define local `COLORS` objects (red `#C5122C`, navy `#003C64`, orange `#F86F18`).
 
+### Design & Layout Guidelines
+
+All screens and components follow these design rules:
+
+1. **Use `AppScreen` wrapper** -- Every screen must be wrapped in `<AppScreen>` from `src/components/layout/AppScreen.tsx`. It provides a `SafeAreaView` with edges `top`, `left`, `right`.
+2. **Import from theme, never hardcode colors/fonts** -- Use `import { Colors, Fonts } from '../../theme';`. Never hardcode color hex values or font sizes. Access via `Colors.primary`, `Fonts.sizes.md`, `Fonts.bold`, etc.
+3. **Prefer reusable components** -- If a common component exists in `src/components/common/`, use it instead of inline equivalents (e.g., `AppHeader`, `SectionCard`, `InfoRow`, `AvatarBadge`).
+4. **SafeAreaView for edge protection** -- `AppScreen` already wraps the screen. Do not nest additional `SafeAreaView`s unless handling edge-specific insets inside a component. Insets are handled at the top level only.
+5. **Consistent card shadow / elevation** -- Cards and sections should use the standard shadow style (elevation: 2, shadowOpacity: 0.06, shadowRadius: 3). `SectionCard` component handles this automatically.
+6. **Typography hierarchy**:
+   - Screen title: `Fonts.sizes.lg`, `Fonts.bold`
+   - Card title: `Fonts.sizes.md`, `Fonts.bold`
+   - Body text: `Fonts.sizes.sm`, `Fonts.regular`
+   - Small / subtle text: `Fonts.sizes.xs`, `Fonts.semiBold`
+7. **Avatar / initials** -- Use `AvatarBadge` for user initials. It auto-sizes and uses the theme `primary` color.
+8. **Info rows** -- Use `InfoRow` for label-value pairs. It auto-handles null/undefined with a dash.
+9. **Card sections** -- Use `SectionCard` to group related fields with a consistent container style.
+10. **Header back navigation** -- Use `AppHeader` instead of manually creating a back button with `navigation.goBack()`. It provides consistent styling and back arrow behavior.
+
 ### Components
 
+- `AppScreen` (`src/components/layout/AppScreen.tsx`) -- wrapper providing `SafeAreaView` with top/left/right edges. Every screen uses this.
+- `AppHeader` (`src/components/common/AppHeader.tsx`) -- top bar with back button and screen title. Accepts `title` and `showBack` props.
+- `SectionCard` (`src/components/common/SectionCard.tsx`) -- reusable card grouping related info rows. Styled with standard elevation and shadow.
+- `InfoRow` (`src/components/common/InfoRow.tsx`) -- label-value row for profile/settings detail screens. Auto-renders `—` for null/undefined.
+- `AvatarBadge` (`src/components/common/AvatarBadge.tsx`) -- circular initials badge. Accepts `initials` string and optional `size`.
 - `ErrorView` (`src/components/ErrorView.tsx`) -- reusable error display with an optional retry button.
 - `LogoContainer` (`src/components/LogoContainer.tsx`) -- brand logo wrapper for the login screen.
 - `SidePanel` (`src/components/SidePanel.tsx`) -- custom animated drawer.
@@ -135,12 +159,13 @@ Update `API_BASE_URL` when switching environments (dev, staging, production).
 | Side panel / drawer | Done |
 | Navigation (Auth/App) | Done |
 | Error handling | Done |
+| Profile screen | Done |
+| Reusable UI components | Done |
 
 ### Next Steps
 
-- Token persistence (AsyncStorage or SecureStore).
-- Add screens to `AppStack` (ListView, Profile).
 - Populate `SidePanel` navigation links.
-- Add refresh token / session expiry handling.
-- API interceptor for attaching `authToken`.
 - Loading skeletons / pull-to-refresh on dashboard.
+- ListView screen for data-heavy screens.
+- Add refresh token / session expiry handling.
+- Biometric authentication support.
