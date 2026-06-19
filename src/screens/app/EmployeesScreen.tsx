@@ -198,13 +198,8 @@ const EmployeesScreen: React.FC = () => {
 
     if (debouncedSearch.trim()) {
       const q = debouncedSearch.toLowerCase();
-      result = result.filter(
-        (e) =>
-          e.Name?.toLowerCase().includes(q) ||
-          e.Designation?.toLowerCase().includes(q) ||
-          e.Department?.toLowerCase().includes(q) ||
-          e.EmailID?.toLowerCase().includes(q) ||
-          e.Mentor?.toLowerCase().includes(q),
+      result = result.filter((e) =>
+        e.Name?.toLowerCase().includes(q),
       );
     }
 
