@@ -125,10 +125,18 @@ All screens and components follow these design rules:
 Connects to the Synergy Dashboard API via `src/api/config.ts`:
 
 - `API_BASE_URL` -- base URL of the backend API.
-- `ENDPOINTS.validateLogin` -- login endpoint path.
+- `API_POST_DATA_URL` -- full PostData endpoint URL (login, etc.).
+- `ENDPOINTS.validateLogin` -- login method passed in POST body.
 - `DEVICE_ID` -- fixed device identifier.
 
 Update `API_BASE_URL` when switching environments (dev, staging, production).
+
+### Employee Directory
+
+- `EmployeeService` (`src/services/EmployeeService.ts`) contains `getEmployeeMasterList()` which calls the `GetData` endpoint via `GET` to retrieve the full active employee directory.
+- `Employee Types` (`src/api/interfaces/EmployeeTypes.ts`) defines the `EmployeeRecord` and `EmployeeMasterListResponse` structures.
+- `EmployeesScreen` (`src/screens/app/EmployeesScreen.tsx`) provides in-app search by name, designation, or department, plus a department filter chip bar.
+- Uses the auth `Token` from Redux store as a filter param when calling the API.
 
 ### Login Flow
 
@@ -161,11 +169,11 @@ Update `API_BASE_URL` when switching environments (dev, staging, production).
 | Error handling | Done |
 | Profile screen | Done |
 | Reusable UI components | Done |
+| Employee directory | Done |
 
 ### Next Steps
 
 - Populate `SidePanel` navigation links.
 - Loading skeletons / pull-to-refresh on dashboard.
-- ListView screen for data-heavy screens.
 - Add refresh token / session expiry handling.
 - Biometric authentication support.

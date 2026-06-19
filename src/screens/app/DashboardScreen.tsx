@@ -36,6 +36,7 @@ const CARDS: CardItem[] = [
   { id: 'meetings', title: 'Meetings', sub: 'Scheduled today', abbr: 'M', colors: Colors.danger, badge: 3 },
   { id: 'helpdesk', title: 'IT Helpdesk', sub: 'Report issues', abbr: 'IT', colors: Colors.primary },
   { id: 'projects', title: 'Assigned Projects', sub: 'Active work items', abbr: 'P', colors: Colors.secondary },
+  { id: 'organisation', title: 'My Organisation', sub: 'Employee directory', abbr: 'MO', colors: Colors.primary, badge: 0 },
   { id: 'profile', title: 'My Profile', sub: 'Skills & info', abbr: 'MP', colors: Colors.danger },
   { id: 'shift', title: 'Work Shift', sub: 'Schedule & avail.', abbr: 'WS', colors: Colors.primary },
   { id: 'news', title: 'News & Announcements', sub: 'Company updates', abbr: 'N', colors: Colors.secondary, badge: 2 },
@@ -225,6 +226,9 @@ useState(true);
           break;
         case 'profile':
           navigation.navigate('Profile');
+          break;
+        case 'organisation':
+          navigation.navigate('Employees');
           break;
         default:
           console.log(`${c.title} clicked`);

@@ -4,6 +4,7 @@ import DashboardScreen from '../screens/app/DashboardScreen';
 import HolidayCalendarScreen
 from '../screens/app/HolidayCalendarScreen';
 import ProfileScreen from '../screens/app/ProfileScreen';
+import EmployeesScreen from '../screens/app/EmployeesScreen';
 const Stack = createNativeStackNavigator();
 
 const AppStack = () => {
@@ -20,6 +21,10 @@ const AppStack = () => {
       <Stack.Screen
         name="Profile"
         component={ProfileScreen}
+      />
+      <Stack.Screen
+        name="Employees"
+        component={EmployeesScreen}
       />
     </Stack.Navigator>
   );
