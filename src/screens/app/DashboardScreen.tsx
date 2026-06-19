@@ -230,6 +230,9 @@ useState(true);
         case 'organisation':
           navigation.navigate('Employees');
           break;
+        case 'leave':
+          navigation.navigate('ApplyLeave');
+          break;
         default:
           console.log(`${c.title} clicked`);
       }

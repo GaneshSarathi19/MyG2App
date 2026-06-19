@@ -5,6 +5,7 @@ import HolidayCalendarScreen
 from '../screens/app/HolidayCalendarScreen';
 import ProfileScreen from '../screens/app/ProfileScreen';
 import EmployeesScreen from '../screens/app/EmployeesScreen';
+import ApplyLeaveScreen from '../screens/app/ApplyLeaveScreen';
 const Stack = createNativeStackNavigator();
 
 const AppStack = () => {
@@ -25,6 +26,10 @@ const AppStack = () => {
       <Stack.Screen
         name="Employees"
         component={EmployeesScreen}
+      />
+      <Stack.Screen
+        name="ApplyLeave"
+        component={ApplyLeaveScreen}
       />
     </Stack.Navigator>
   );
