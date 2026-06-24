@@ -11,8 +11,12 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
 } from 'react-native';
+import {useNavigation} from '@react-navigation/native';
+import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import { Colors, Fonts } from '../../theme';
 import {useAuth} from '../../context/AuthContext';
+import {useAppSelector, useAppDispatch} from '../../redux/hooks';
+import {clearOrganisation} from '../../redux/slices/organisationSlice';
 import ErrorView from '../../components/ErrorView';
 import LogoContainer from '../../components/LogoContainer';
 import AppScreen from '../../components/layout/AppScreen';
@@ -23,6 +27,11 @@ const EMAIL_REGEX = /^[\w-.]+@[\w-]+\.[A-Za-z]{2,}$/;
 
 const LoginScreen = () => {
   const {login, isLoading, error: authError, clearAuthError} = useAuth();
+  const dispatch = useAppDispatch();
+  const navigation = useNavigation<NativeStackNavigationProp<any>>();
+  const selectedOrganisation = useAppSelector(
+    state => state.organisation.selectedOrganisation,
+  );
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -117,6 +126,7 @@ const LoginScreen = () => {
           <View style={styles.card}>
             <LogoContainer
               variant="full"
+              organisation={selectedOrganisation ?? 'G2'}
               source={require('../../resources/g2logo-small.png')}
             />
 
@@ -216,9 +226,15 @@ const LoginScreen = () => {
               )}
             </TouchableOpacity>
 
-            <Text style={styles.demoText}>
-              Demo Credentials:{"\n"}Username: admin{"\n"}Password: 1234
-            </Text>
+            <TouchableOpacity
+              style={styles.changeOrgRow}
+              onPress={() => {
+                dispatch(clearOrganisation());
+                navigation.navigate('Organisation');
+              }}
+            >
+              <Text style={styles.changeOrgText}>Change Organisation</Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -364,12 +380,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  demoText: {
+  changeOrgRow: {
     marginTop: 20,
-    textAlign: 'center',
-    color: Colors.textSecondary,
-    fontSize: 12,
-    lineHeight: 18,
+    alignItems: 'center',
+  },
+  changeOrgText: {
+    fontSize: Fonts.sizes.sm,
+    color: Colors.primary,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
 });
 

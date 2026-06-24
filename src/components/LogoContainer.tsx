@@ -6,48 +6,33 @@ import {
   StyleSheet,
   ViewStyle,
 } from 'react-native';
-import { Color } from 'react-native/types_generated/Libraries/Animated/AnimatedExports';
 import { Colors } from '../theme';
-
-/* ──────────────────────────────────────────────────────────────────
-   LogoContainer
-   ──────────────────────────────────────────────────────────────────
-   Renders the company logo placeholder.  Swap the `source` prop
-   for your actual PNG once the asset is in src/resources/images/.
-
-   Variants
-   --------
-   • "full"    – large centred block for the login card
-   • "compact" – smaller inline version for the dashboard header
-   • "header"  – minimal logo in the drawer / top bar
-
-   Usage
-   -----
-   <LogoContainer
-     variant="full"
-     source={require('../../resources/images/g2-logo.png')}
-   />
-   ────────────────────────────────────────────────────────────────── */
+import type {Organisation} from '../redux/slices/organisationSlice';
 
 export type LogoVariant = 'full' | 'compact' | 'header';
 
 interface Props {
-  /** branding variant */
   variant?: LogoVariant;
-  /** actual logo image; omit to show a styled placeholder */
   source?: any;
-  /** overrides */
   style?: ViewStyle;
+  organisation?: Organisation;
 }
 
-/* ── Corporate colour constants ── */
+const ORG_CONFIG: Record<string, {name: string; initials: string}> = {
+  'G2': {name: 'G2 Technology Solutions India Pvt Ltd.', initials: 'G2'},
+  'CG-Vak': {name: 'CG-Vak Software & Exports Ltd.', initials: 'CG'},
+};
 
-const LogoContainer: React.FC<Props> = ({ variant = 'full', source, style }) => {
-  const isPlaceholder = !source;
+const LogoContainer: React.FC<Props> = ({
+  variant = 'full',
+  source,
+  style,
+  organisation = 'G2',
+}) => {
+  const config = ORG_CONFIG[organisation] ?? ORG_CONFIG['G2'];
 
   return (
     <View style={[styles.wrapper, style]}>
-      {/* Image area */}
       <View style={[styles.logoBox, logoSizeStyles[variant]]}>
         {source ? (
           <Image
@@ -57,17 +42,14 @@ const LogoContainer: React.FC<Props> = ({ variant = 'full', source, style }) => 
           />
         ) : (
           <View style={[styles.placeholder, placeholderStyles[variant]]}>
-            <Text style={styles.placeholderText}>G2</Text>
+            <Text style={styles.placeholderText}>{config.initials}</Text>
           </View>
         )}
       </View>
 
-      {/* Text lockup – only for full variant */}
       {variant === 'full' && (
         <>
-          <Text style={styles.companyName}>
-            G2 Technology Solutions India Pvt Ltd.
-          </Text>
+          <Text style={styles.companyName}>{config.name}</Text>
           <Text style={styles.tagline}>Sign in to continue</Text>
         </>
       )}

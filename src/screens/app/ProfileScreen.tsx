@@ -6,6 +6,7 @@ import { InfoRow } from '../../components/common/InfoRow';
 import { SectionCard } from '../../components/common/SectionCard';
 import { AvatarBadge } from '../../components/common/AvatarBadge';
 import { useAppSelector } from '../../redux/hooks';
+import {getProfileImageUri} from '../../utils/profileImage';
 import { Colors, Fonts } from '../../theme';
 
 /* ─── Component ──────────────────────────────────────────────────────── */
@@ -35,7 +36,7 @@ const ProfileScreen: React.FC = () => {
       >
         {/* ── Avatar Header ───────────────────────────────────────────── */}
         <View style={styles.avatarSection}>
-          <AvatarBadge initials={initials} />
+          <AvatarBadge initials={initials} imageUrl={getProfileImageUri(user.ProfilePicture)} />
           <Text style={styles.name}>{fullName}</Text>
           <Text style={styles.designation}>{user.Designation}</Text>
           <View style={styles.deptChip}>
@@ -75,8 +76,17 @@ const ProfileScreen: React.FC = () => {
 
         {/* ── Mentor ────────────────────────────────────────────────────── */}
         <SectionCard title="Mentor">
-          <InfoRow label="Name" value={mentorName} />
-          <InfoRow label="Email" value={user.mentorCorporateEmailID} />
+          <View style={styles.mentorRow}>
+            <AvatarBadge
+              initials={`${user.mentorFirstName?.charAt(0) || ''}${user.mentorLastName?.charAt(0) || ''}`}
+              size={48}
+              imageUrl={getProfileImageUri(user.MentorProfilePicture)}
+            />
+            <View style={styles.mentorInfo}>
+              <Text style={styles.mentorName}>{mentorName}</Text>
+              <Text style={styles.mentorEmail}>{user.mentorCorporateEmailID}</Text>
+            </View>
+          </View>
         </SectionCard>
 
         {/* ── Documents / IDs ───────────────────────────────────────────── */}
@@ -94,6 +104,25 @@ const ProfileScreen: React.FC = () => {
 /* ─── Styles ──────────────────────────────────────────────────────────── */
 
 const styles = StyleSheet.create({
+  mentorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  mentorInfo: {
+    marginLeft: 14,
+    flex: 1,
+  },
+  mentorName: {
+    fontSize: Fonts.sizes.md,
+    fontFamily: Fonts.bold,
+    color: Colors.textPrimary,
+    marginBottom: 2,
+  },
+  mentorEmail: {
+    fontSize: Fonts.sizes.sm,
+    fontFamily: Fonts.regular,
+    color: Colors.textSecondary,
+  },
   center: {
     flex: 1,
     justifyContent: 'center',

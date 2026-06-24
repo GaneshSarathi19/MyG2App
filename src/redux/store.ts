@@ -10,9 +10,10 @@ import {
   PURGE,
   REGISTER,
 } from 'redux-persist';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import EncryptedStorage from 'react-native-encrypted-storage';
 import authReducer, {AuthState} from './slices/authSlice';
 import settingsReducer, {SettingsState} from './slices/settingsSlice';
+import organisationReducer, {OrganisationState} from './slices/organisationSlice';
 
 /* ── Persist Transform for Remember Me ───────────────────────────────── */
 
@@ -43,7 +44,7 @@ const authTransform = createTransform<
 
 const persistConfig = {
   key: 'root',
-  storage: AsyncStorage,
+  storage: EncryptedStorage,
   whitelist: ['auth', 'settings'],
   transforms: [authTransform],
 };
@@ -53,11 +54,13 @@ const persistConfig = {
 export interface RootState {
   auth: AuthState;
   settings: SettingsState;
+  organisation: OrganisationState;
 }
 
 const rootReducer = combineReducers({
   auth: authReducer,
   settings: settingsReducer,
+  organisation: organisationReducer,
 });
 
 const persistedReducer: any = persistReducer(persistConfig, rootReducer as any);

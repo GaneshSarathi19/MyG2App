@@ -1,19 +1,22 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, {useState} from 'react';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import { Colors, Fonts } from '../../theme';
 
 interface AvatarBadgeProps {
   initials: string;
   size?: number;
+  imageUrl?: string | null;
 }
 
 /**
- * Circular avatar badge displaying user initials.
- * Defaults to an 80x80 circle; override with the `size` prop.
+ * Circular avatar badge displaying user initials or an image.
+ * Falls back to initials when no imageUrl is provided or on load error.
  */
-export const AvatarBadge: React.FC<AvatarBadgeProps> = ({ initials, size = 80 }) => {
+export const AvatarBadge: React.FC<AvatarBadgeProps> = ({ initials, size = 80, imageUrl }) => {
+  const [imgError, setImgError] = useState(false);
   const half = size / 2;
   const fontSize = Math.round(size * 0.3);
+  const showImage = !!imageUrl && !imgError;
 
   return (
     <View
@@ -26,7 +29,15 @@ export const AvatarBadge: React.FC<AvatarBadgeProps> = ({ initials, size = 80 })
         },
       ]}
     >
-      <Text style={[styles.text, { fontSize }]}>{initials}</Text>
+      {showImage ? (
+        <Image
+          source={{uri: imageUrl}}
+          style={{width: size, height: size, borderRadius: half}}
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        <Text style={[styles.text, { fontSize }]}>{initials}</Text>
+      )}
     </View>
   );
 };

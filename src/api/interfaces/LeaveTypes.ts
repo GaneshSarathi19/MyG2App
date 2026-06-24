@@ -114,10 +114,22 @@ export interface EmployeeLeaveSummaryResponse {
 
 /**
  * Fields required to update an existing leave record.
+ * Mirrors LeaveDetail so all editable form fields are sent on update.
  */
 export interface UpdateLeaveDetail {
   LeaveId: string;
+  /** Leave date(s) in M/D/YYYY format */
+  LeaveDate: string;
+  /** Number of leave hours (e.g. "8") */
   LeaveHours: string;
+  /** Date the leave was applied, in YYYY-MM-DD format */
+  AppliedDate: string;
+  /** Reason / description for the leave */
+  Reason: string;
+  /** File attachment */
+  LeaveFile: string;
+  /** GUID of the leave type */
+  LeaveTypeID: string;
   CompensationRequired: number;
   CompensationDate: string;
   LeaveDetailsID: string;

@@ -131,6 +131,22 @@ const getStatusColor = (status?: string): string => {
 };
 
 /**
+ * Generates an array of YYYY-MM-DD dates between two ISO date strings (inclusive).
+ */
+const generateDateRange = (fromStr: string, toStr: string): string[] => {
+  const from = parseDateString(fromStr);
+  const to = parseDateString(toStr);
+  if (!from || !to) return [];
+  const dates: string[] = [];
+  const current = new Date(from);
+  while (current <= to) {
+    dates.push(formatISODate(current));
+    current.setDate(current.getDate() + 1);
+  }
+  return dates;
+};
+
+/**
  * Formats an ISO date string into YYYY-MM-DD.
  */
 const formatApiDate = (dateStr: string): string => {
@@ -224,6 +240,9 @@ const ApplyLeaveScreen: React.FC = () => {
   /* ── Touched / errors ──────────────────────────────────────────── */
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  /* ── Edit loading ──────────────────────────────────────────────── */
+  const [isEditingLoading, setIsEditingLoading] = useState(false);
 
   /* ── Submit / feedback ─────────────────────────────────────────── */
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -357,21 +376,43 @@ const ApplyLeaveScreen: React.FC = () => {
   };
 
   /* ── Open form for edit ─────────────────────────────────────────── */
-  const openEditForm = (record: LeaveSummaryRecord) => {
-    setLeaveDates(record.LeaveDate ? [record.LeaveDate] : []);
-    setLeaveHours(record.LeaveHours || '');
-    setReason(record.Reason || '');
-    setAppliedDate(record.AppliedDate || formatISODate(new Date()));
-    setLeaveFile(record.LeaveFile || '');
-    const matchedType =
-      leaveTypes.find(t => t.LeaveTypeID === record.LeaveTypeID) ?? null;
-    setSelectedLeaveType(matchedType);
-    setTouched({});
-    setErrors({});
-    setSubmitMessage(null);
+  const openEditForm = async (record: LeaveSummaryRecord) => {
+    setIsEditingLoading(true);
+    setViewMode('form');
     setIsEditing(true);
     setEditingRecord(record);
-    setViewMode('form');
+
+    try {
+      // Fetch full detail from backend using the LeaveId
+      const detail = await LeaveService.getEmployeeLeaveDetail(record.LeaveId);
+      const src = detail ?? record;
+
+      const dates = generateDateRange(src.From, src.To);
+      setLeaveDates(dates.length > 0 ? dates : src.LeaveDate ? [src.LeaveDate] : []);
+      setLeaveHours(src.LeaveHours || '8');
+      setReason(src.Reason || '');
+      setAppliedDate(src.AppliedDate || formatISODate(new Date()));
+      setLeaveFile(src.LeaveFile || '');
+      const matchedType =
+        leaveTypes.find(t => t.LeaveTypeID === src.LeaveTypeID) ?? null;
+      setSelectedLeaveType(matchedType);
+    } catch {
+      // Fallback to summary record on fetch failure
+      const dates = generateDateRange(record.From, record.To);
+      setLeaveDates(dates.length > 0 ? dates : record.LeaveDate ? [record.LeaveDate] : []);
+      setLeaveHours(record.LeaveHours || '8');
+      setReason(record.Reason || '');
+      setAppliedDate(record.AppliedDate || formatISODate(new Date()));
+      setLeaveFile(record.LeaveFile || '');
+      const matchedType =
+        leaveTypes.find(t => t.LeaveTypeID === record.LeaveTypeID) ?? null;
+      setSelectedLeaveType(matchedType);
+    } finally {
+      setTouched({});
+      setErrors({});
+      setSubmitMessage(null);
+      setIsEditingLoading(false);
+    }
   };
 
   /* ── Submit handler ─────────────────────────────────────────────── */
@@ -399,7 +440,12 @@ const ApplyLeaveScreen: React.FC = () => {
         /* ── UPDATE ───────────────────────────────────────────────── */
         const updateDetail: UpdateLeaveDetail = {
           LeaveId: editingRecord.LeaveId,
+          LeaveDate: convertToMDYYYY(leaveDates[0] || formatISODate(new Date())),
           LeaveHours: leaveHours,
+          AppliedDate: appliedDate,
+          Reason: reason.trim(),
+          LeaveFile: leaveFile || '',
+          LeaveTypeID: selectedLeaveType!.LeaveTypeID,
           CompensationRequired: 1,
           CompensationDate: formatISODate(new Date()),
           LeaveDetailsID: editingRecord.LeaveDetailsID || '',
@@ -729,9 +775,30 @@ const ApplyLeaveScreen: React.FC = () => {
                 />
               }
             >
-              {leaves.map((record, index) => (
-                <LeaveCard key={`${record.LeaveId}-${index}`} record={record} />
-              ))}
+              {(() => {
+                const grouped: Record<string, LeaveSummaryRecord[]> = {};
+                const order = ['Pending', 'Approved', 'Rejected'];
+                leaves.forEach(r => {
+                  const key = r.Status || 'Other';
+                  if (!grouped[key]) grouped[key] = [];
+                  grouped[key].push(r);
+                });
+                return order.map(sectionKey => {
+                  const items = grouped[sectionKey];
+                  if (!items || items.length === 0) return null;
+                  return (
+                    <View key={sectionKey} style={styles.section}>
+                      <View style={styles.sectionHeader}>
+                        <View style={[styles.sectionIndicator, {backgroundColor: getStatusColor(sectionKey)}]} />
+                        <Text style={styles.sectionTitle}>{sectionKey} ({items.length})</Text>
+                      </View>
+                      {items.map((record, idx) => (
+                        <LeaveCard key={`${record.LeaveId}-${idx}`} record={record} />
+                      ))}
+                    </View>
+                  );
+                });
+              })()}
             </ScrollView>
           )}
         </>
@@ -742,6 +809,12 @@ const ApplyLeaveScreen: React.FC = () => {
             title={isEditing ? 'Edit Leave' : 'Apply Leave'}
             showBack={true}
           />
+          {isEditingLoading ? (
+            <View style={styles.centered}>
+              <ActivityIndicator size="large" color={Colors.primary} />
+              <Text style={styles.loadingText}>Loading leave details...</Text>
+            </View>
+          ) : (
           <KeyboardAvoidingView
             style={styles.flex}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -1028,6 +1101,7 @@ const ApplyLeaveScreen: React.FC = () => {
               </ScrollView>
             </TouchableWithoutFeedback>
           </KeyboardAvoidingView>
+        )}
         </>
       )}
     </AppScreen>
@@ -1119,6 +1193,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 8,
   },
+  loadingText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginTop: 12,
+  },
   retryButton: {
     backgroundColor: Colors.primary,
     paddingHorizontal: 20,
@@ -1129,6 +1208,28 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: Colors.white,
     fontWeight: '700',
+  },
+
+  /* ── Sections ─────────────────────────────────────────────── */
+  section: {
+    marginBottom: 16,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    paddingHorizontal: 2,
+  },
+  sectionIndicator: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 8,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.textPrimary,
   },
 
   /* ── Leave Card ───────────────────────────────────────────── */

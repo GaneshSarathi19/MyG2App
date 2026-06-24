@@ -7,13 +7,24 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
+  Image,
 } from 'react-native';
-import {useAppSelector, useAppDispatch} from '../../redux/hooks';
-import {logout} from '../../redux/slices/authSlice';
+import {useAppSelector} from '../../redux/hooks';
 import {useDrawer} from '../../context/DrawerContext';
 import { Colors } from '../../theme';
 import AppScreen from '../../components/layout/AppScreen';
+import AvatarBadge from '../../components/common/AvatarBadge';
+import {getProfileImageUri} from '../../utils/profileImage';
 import { useNavigation } from '@react-navigation/native';
+import type {Organisation} from '../../redux/slices/organisationSlice';
+
+const G2_LOGO = require('../../resources/g2logo-small.png') as number;
+const CG_VAK_LOGO = require('../../resources/cgvaklogo-small.png') as number;
+
+const ORG_LOGOS: Record<string, any> = {
+  'G2': G2_LOGO,
+  'CG-Vak': CG_VAK_LOGO,
+};
 import HolidayBanner
 from '../../components/common/HolidayBanner';
 /* ─── Styles ──────────────────────────────────────────────────────── */
@@ -117,10 +128,14 @@ const getGreeting = (): string => {
 const DashboardScreen = () => {
    const [isCompactHeader, setIsCompactHeader] =
     useState(false);
-  const dispatch = useAppDispatch();
   const user = useAppSelector(state => state.auth.user);
+  const selectedOrganisation = useAppSelector(
+    state => state.organisation.selectedOrganisation,
+  );
   const {toggle} = useDrawer();
      const navigation = useNavigation<any>();
+
+  const initials = `${user?.FirstName?.charAt(0) || ''}${user?.LastName?.charAt(0) || ''}`;
 const [showHolidayBanner,
 setShowHolidayBanner] =
 useState(true);
@@ -145,9 +160,21 @@ useState(true);
         </Text>
       </TouchableOpacity>
 
+      <AvatarBadge
+        initials={initials}
+        size={32}
+        imageUrl={getProfileImageUri(user?.ProfilePicture)}
+      />
       <Text style={styles.compactName}>
         {getGreeting()}, {user?.FirstName}
       </Text>
+      {selectedOrganisation && (
+        <Image
+          source={ORG_LOGOS[selectedOrganisation]}
+          style={styles.compactOrgLogo}
+          resizeMode="contain"
+        />
+      )}
     </View>
   ) : (
     <>
@@ -168,17 +195,31 @@ useState(true);
         </View>
       </View>
 
-      <Text style={styles.greeting}>
-        {getGreeting()},
-      </Text>
-
-      <Text style={styles.name}>
-        {user?.FirstName}
-      </Text>
-
-      <Text style={styles.designation}>
-        {user?.Designation}
-      </Text>
+      <View style={styles.headerProfileRow}>
+        <AvatarBadge
+          initials={initials}
+          size={50}
+          imageUrl={getProfileImageUri(user?.ProfilePicture)}
+        />
+        <View style={styles.headerProfileText}>
+          <Text style={styles.greeting}>
+            {getGreeting()},
+          </Text>
+          <Text style={styles.name}>
+            {user?.FirstName}
+          </Text>
+          <Text style={styles.designation}>
+            {user?.Designation}
+          </Text>
+        </View>
+        {selectedOrganisation && (
+          <Image
+            source={ORG_LOGOS[selectedOrganisation]}
+            style={styles.headerOrgLogo}
+            resizeMode="contain"
+          />
+        )}
+      </View>
     </>
   )}
 </View>
@@ -300,6 +341,16 @@ compactName: {
   fontSize: 16,
   fontWeight: '700',
   marginLeft: 12,
+  flex: 1,
+},
+headerProfileRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginTop: 8,
+},
+headerProfileText: {
+  marginLeft: 14,
+  flex: 1,
 },
   headerTopRow: {
     flexDirection: 'row',
@@ -416,7 +467,21 @@ compactName: {
   annDesc: { fontSize: 12, color: Colors.textSecondary, lineHeight: 18 },
   annTime: { fontSize: 11, color: '#A0A0A0', marginTop: 6 },
 
-  // Logout
+  headerOrgLogo: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    marginLeft: 12,
+  },
+
+  compactOrgLogo: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    marginLeft: 8,
+  },
 
 });
 export default DashboardScreen;

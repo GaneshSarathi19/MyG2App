@@ -10,6 +10,7 @@ import {
   UpdateLeaveDetail,
   PostEmployeeLeaveUpdateRequest,
   PostEmployeeLeaveDeleteRequest,
+  LeaveSummaryRecord,
 } from '../api/interfaces/LeaveTypes';
 
 /**
@@ -65,6 +66,29 @@ export const LeaveService = {
     );
 
     return response as EmployeeLeaveSummaryResponse;
+  },
+
+  /**
+   * Fetches a single leave record's full details by LeaveId.
+   */
+  getEmployeeLeaveDetail: async (
+    leaveId: string,
+  ): Promise<LeaveSummaryRecord | null> => {
+    const response = await callGetList<LeaveSummaryRecord[]>(
+      'GetEmployeeLeaveSummary',
+      {LeaveId: leaveId},
+    );
+
+    logger.log(
+      '[LeaveService] GetEmployeeLeaveDetail response:',
+      JSON.stringify(response, null, 2),
+    );
+
+    if (response.IsSuccess && Array.isArray(response.Data) && response.Data.length > 0) {
+      return response.Data[0];
+    }
+
+    return null;
   },
 
   /**
