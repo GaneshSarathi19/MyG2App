@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation, NavigationProp } from '@react-navigation/native';
 
 import { useDrawer } from '../context/DrawerContext';
 import { useAuth } from '../context/AuthContext';
@@ -21,6 +22,32 @@ const PANEL_WIDTH = Math.min(
   Math.round(width * 0.82),
 );
 
+/* ── App Stack parameter types ─────────────────────────────────────── */
+
+type AppStackParamList = {
+  Dashboard: undefined;
+  HolidayCalendar: undefined;
+  ApplyLeave: undefined;
+  Profile: undefined;
+  Settings: undefined;
+  Employees: undefined;
+};
+
+/* ── Nav Item Definition ───────────────────────────────────────────── */
+
+interface NavItem {
+  label: string;
+  screen: keyof AppStackParamList;
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { label: 'Dashboard', screen: 'Dashboard' },
+  { label: 'Holiday Calendar', screen: 'HolidayCalendar' },
+  { label: 'Leave Management', screen: 'ApplyLeave' },
+  { label: 'Attendance', screen: 'ApplyLeave' },
+  { label: 'My Profile', screen: 'Profile' },
+];
+
 const SidePanel: React.FC = () => {
   const [visible, setVisible] = useState(false);
 
@@ -29,11 +56,17 @@ const SidePanel: React.FC = () => {
     closeDrawer,
   } = useDrawer();
 
+  const navigation = useNavigation<NavigationProp<AppStackParamList>>();
   const { logout } = useAuth();
 
   const anim = React.useRef(
     new Animated.Value(0),
   ).current;
+
+  const handleNavigate = (screen: keyof AppStackParamList) => {
+    closeDrawer();
+    navigation.navigate(screen);
+  };
 
   const handleLogout = () => {
     closeDrawer();
@@ -75,7 +108,6 @@ const SidePanel: React.FC = () => {
 
   return (
     <View style={styles.overlay}>
-      {/* Backdrop */}
       <Animated.View
         style={[
           styles.backdrop,
@@ -91,7 +123,6 @@ const SidePanel: React.FC = () => {
         />
       </Animated.View>
 
-      {/* Drawer Panel */}
       <Animated.View
         style={[
           styles.panel,
@@ -105,54 +136,35 @@ const SidePanel: React.FC = () => {
           edges={['top', 'bottom']}
         >
           <View style={styles.container}>
-            {/* Top Section */}
             <View style={styles.topContent}>
               <Text style={styles.header}>
                 MyG2
               </Text>
 
-              <TouchableOpacity
-                style={styles.item}
-              >
-                <Text style={styles.itemText}>
-                  Dashboard
-                </Text>
-              </TouchableOpacity>
+              {NAV_ITEMS.map((item) => (
+                <TouchableOpacity
+                  key={item.screen + item.label}
+                  style={styles.item}
+                  onPress={() => handleNavigate(item.screen)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.itemText}>
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
 
               <TouchableOpacity
                 style={styles.item}
+                onPress={() => handleNavigate('Settings')}
+                activeOpacity={0.7}
               >
                 <Text style={styles.itemText}>
-                  Holiday Calendar
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.item}
-              >
-                <Text style={styles.itemText}>
-                  Leave Management
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.item}
-              >
-                <Text style={styles.itemText}>
-                  Attendance
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.item}
-              >
-                <Text style={styles.itemText}>
-                  My Profile
+                  Settings
                 </Text>
               </TouchableOpacity>
             </View>
 
-            {/* Bottom Section */}
             <View style={styles.bottomContent}>
               <Text style={styles.version}>
                 Version 1.0.0

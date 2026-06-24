@@ -1,9 +1,9 @@
-import axiosClient from '../api/axiosClient';
-import {API_BASE_URL, API_POST_DATA_URL} from '../api/config';
+import axiosClient, {callGetList} from '../api/axiosClient';
+import {API_POST_DATA_URL} from '../api/config';
 import {logger} from '../utils/logger';
-import {store} from '../redux/store';
 import {
   LeaveDetail,
+  LeaveType,
   PostEmployeeLeaveRequest,
   PostEmployeeLeaveResponse,
   EmployeeLeaveSummaryResponse,
@@ -14,21 +14,24 @@ import {
 
 /**
  * Service for all leave-related API operations.
+ *
+ * Authentication: the `axiosClient` interceptor automatically attaches
+ * `Authorization: Bearer <token>` to every outgoing request. The legacy
+ * `GetData` endpoints also include the token in the `filters` query
+ * param for backward compatibility until the backend fully migrates to
+ * the `Authorization` header.
  */
 export const LeaveService = {
   /**
    * Submits a new leave request to the backend.
-   *
-   * @param detail - The complete leave detail object to submit.
-   * @returns Promise resolving to the backend leave response.
    */
   postEmployeeLeave: async (
-    detail: LeaveDetail,
+    details: LeaveDetail[],
   ): Promise<PostEmployeeLeaveResponse> => {
     const payload: PostEmployeeLeaveRequest = {
       Method: 'PostEmployeeLeave',
       Data: {
-        LeaveDetails: JSON.stringify([detail]),
+        LeaveDetails: JSON.stringify(details),
       },
       Status: '',
       Message: '',
@@ -50,34 +53,22 @@ export const LeaveService = {
 
   /**
    * Fetches the employee leave summary from the backend.
-   *
-   * @returns Promise resolving to the leave summary response.
    */
   getEmployeeLeaveSummary: async (): Promise<EmployeeLeaveSummaryResponse> => {
-    const token = store.getState().auth.authToken;
-
-    const filters = JSON.stringify({
-      Token: token,
-    });
-
-    const url = `${API_BASE_URL}/GetData?query=GetEmployeeLeaveSummary&filters=${encodeURIComponent(filters)}`;
-
-    const {data} =
-      await axiosClient.get<EmployeeLeaveSummaryResponse>(url);
+    const response = await callGetList<EmployeeLeaveSummaryResponse['Data']>(
+      'GetEmployeeLeaveSummary',
+    );
 
     logger.log(
       '[LeaveService] GetEmployeeLeaveSummary response:',
-      JSON.stringify(data, null, 2),
+      JSON.stringify(response, null, 2),
     );
 
-    return data;
+    return response as EmployeeLeaveSummaryResponse;
   },
 
   /**
    * Updates an existing leave request.
-   *
-   * @param detail - The update leave detail object to submit.
-   * @returns Promise resolving to the backend generic response.
    */
   updateEmployeeLeave: async (
     detail: UpdateLeaveDetail,
@@ -107,9 +98,6 @@ export const LeaveService = {
 
   /**
    * Deletes a leave request by its ID.
-   *
-   * @param leaveId - The unique identifier of the leave to delete.
-   * @returns Promise resolving to the backend generic response.
    */
   deleteEmployeeLeave: async (
     leaveId: string,
@@ -135,5 +123,25 @@ export const LeaveService = {
     );
 
     return data;
+  },
+
+  /**
+   * Fetches the available leave types from the backend master list.
+   */
+  getLeaveTypeList: async (): Promise<LeaveType[]> => {
+    const response = await callGetList<LeaveType[]>(
+      'GetLeaveType',
+    );
+
+    logger.log(
+      '[LeaveService] GetLeaveType response:',
+      JSON.stringify(response, null, 2),
+    );
+
+    if (response.IsSuccess && Array.isArray(response.Data)) {
+      return response.Data;
+    }
+
+    return [];
   },
 };

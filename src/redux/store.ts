@@ -1,4 +1,4 @@
-import {configureStore, combineReducers, Reducer} from '@reduxjs/toolkit';
+import {configureStore, combineReducers} from '@reduxjs/toolkit';
 import {
   persistStore,
   persistReducer,
@@ -12,18 +12,13 @@ import {
 } from 'redux-persist';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import authReducer, {AuthState} from './slices/authSlice';
+import settingsReducer, {SettingsState} from './slices/settingsSlice';
 
 /* ── Persist Transform for Remember Me ───────────────────────────────── */
 
-/**
- * Conditionally persists sensitive auth data based on the rememberMe flag.
- * When rememberMe is false, auth tokens and user data are NOT written to
- * persistent storage, ensuring the user must log in again after app restart.
- */
 const authTransform = createTransform<
   AuthState,
   AuthState,
-  // no additional keys needed beyond `auth`
   any,
   any
 >(
@@ -36,7 +31,6 @@ const authTransform = createTransform<
         user: null,
         isLoggedIn: false,
         tokenExpiry: null,
-        error: null,
       };
     }
     return inboundState;
@@ -50,22 +44,25 @@ const authTransform = createTransform<
 const persistConfig = {
   key: 'root',
   storage: AsyncStorage,
-  whitelist: ['auth'],
+  whitelist: ['auth', 'settings'],
   transforms: [authTransform],
 };
 
-/* ── Root Reducer ──────────────────────────────────────────────────────── */
+/* ── Root Reducer ────────────────────────────────────────────────────── */
+
+export interface RootState {
+  auth: AuthState;
+  settings: SettingsState;
+}
 
 const rootReducer = combineReducers({
   auth: authReducer,
+  settings: settingsReducer,
 });
 
-const persistedReducer = persistReducer(persistConfig, rootReducer) as Reducer<{
-  auth: AuthState;
-}>;
+const persistedReducer: any = persistReducer(persistConfig, rootReducer as any);
 
-
-/* ── Store ─────────────────────────────────────────────────────────────── */
+/* ── Store ─────────────────────────────────────────────── */
 
 export const store = configureStore({
   reducer: persistedReducer,
@@ -77,11 +74,10 @@ export const store = configureStore({
     }),
 });
 
-/* ── Persistor ─────────────────────────────────────────────────────────── */
+/* ── Persistor ──────────────────────────────────────────── */
 
 export const persistor = persistStore(store);
 
-/* ── Type Definitions ──────────────────────────────────────────────────── */
+/* ── Type Definitions ───────────────────────────────────── */
 
-export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;

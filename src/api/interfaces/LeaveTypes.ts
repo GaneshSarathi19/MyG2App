@@ -21,6 +21,31 @@ export interface LeaveDetail {
 }
 
 /**
+ * Represents a single leave type as returned by the backend master list.
+ * Supports multiple alias field names for backward compatibility.
+ */
+export interface LeaveType {
+  LeaveTypeID: string;
+  LeaveTypeDescription: string;
+}
+
+/**
+ * Raw leave type shape from the API before normalisation.
+ * The backend may use either PascalCase or camelCase key names.
+ */
+export interface RawLeaveType {
+  Id?: string;
+  id?: string;
+  LeaveTypeID?: string;
+  leaveTypeID?: string;
+  LeaveTypeDescription?: string;
+  leaveTypeDescription?: string;
+  LeaveTypeName?: string;
+  leaveTypeName?: string;
+  [key: string]: any;
+}
+
+/**
  * Represents a single leave record as returned by the
  * GetEmployeeLeaveSummary API method.
  *

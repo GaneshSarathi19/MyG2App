@@ -1,4 +1,4 @@
-import React, {useState, useCallback} from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,30 +14,18 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
-import {useNavigation, useFocusEffect} from '@react-navigation/native';
-import {Colors} from '../../theme';
+import { useNavigation } from '@react-navigation/native';
+import { Colors } from '../../theme';
 import AppScreen from '../../components/layout/AppScreen';
 import AppHeader from '../../components/common/AppHeader';
-import {LeaveService} from '../../services/LeaveService';
+import { LeaveService } from '../../services/LeaveService';
 import {
   LeaveDetail,
   LeaveSummaryRecord,
   UpdateLeaveDetail,
 } from '../../api/interfaces/LeaveTypes';
-
-/* ─── Constants ───────────────────────────────────────────────────── */
-
-interface LeaveTypeOption {
-  id: string;
-  label: string;
-}
-
-const LEAVE_TYPES: LeaveTypeOption[] = [
-  {id: '27ADC15C-130F-458A-BF20-2F44D092B28B', label: 'Casual Leave'},
-  {id: '2E5A2B6C-3D4E-4F5A-6B7C-8D9E0A1B2C3D', label: 'Sick Leave'},
-  {id: '3F6B3C7D-4E5F-5A6B-7C8D-9E0A1B2C3D4E', label: 'Earned Leave'},
-  {id: '4A7C4D8E-5E6F-6A7B-8C9D-0E1A2B3C4D5E', label: 'Unpaid Leave'},
-];
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { LeaveType } from '../../api/interfaces/LeaveTypes';
 
 /* ─── Helpers ──────────────────────────────────────────────────────── */
 
@@ -48,13 +36,89 @@ const formatISODate = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
-const validateDate = (dateStr: string): boolean => {
+/** Month abbreviations for display formatting */
+const MONTH_NAMES = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
+/**
+ * Parses a date string in common formats: YYYY-MM-DD, M/D/YYYY, MM/DD/YYYY.
+ * Returns a Date object or null if unparseable.
+ */
+const parseDateString = (dateStr: string): Date | null => {
+  if (!dateStr || typeof dateStr !== 'string') return null;
+
+  // ISO format: YYYY-MM-DD
+  const isoMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    const year = parseInt(isoMatch[1], 10);
+    const month = parseInt(isoMatch[2], 10) - 1;
+    const day = parseInt(isoMatch[3], 10);
+    const date = new Date(year, month, day);
+    if (
+      date.getFullYear() === year &&
+      date.getMonth() === month &&
+      date.getDate() === day
+    ) {
+      return date;
+    }
+  }
+
+  // US format: M/D/YYYY or MM/DD/YYYY
+  const usMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (usMatch) {
+    const month = parseInt(usMatch[1], 10) - 1;
+    const day = parseInt(usMatch[2], 10);
+    const year = parseInt(usMatch[3], 10);
+    const date = new Date(year, month, day);
+    if (
+      date.getFullYear() === year &&
+      date.getMonth() === month &&
+      date.getDate() === day
+    ) {
+      return date;
+    }
+  }
+
+  // Fallback: try native parser for edge cases
   const date = new Date(dateStr);
-  return date instanceof Date && !isNaN(date.getTime());
+  if (!isNaN(date.getTime())) return date;
+
+  return null;
 };
 
-const getLeaveTypeLabel = (id: string): string => {
-  return LEAVE_TYPES.find(t => t.id === id)?.label || 'Leave';
+const validateDate = (dateStr: string): boolean => {
+  return parseDateString(dateStr) !== null;
+};
+
+/** Formats a date string into a user-friendly display like "Jun 1, 2026" */
+const formatDisplayDate = (dateStr: string): string => {
+  const date = parseDateString(dateStr);
+  if (!date) return dateStr || 'Select date';
+  return `${
+    MONTH_NAMES[date.getMonth()]
+  } ${date.getDate()}, ${date.getFullYear()}`;
+};
+
+/**
+ * Converts a YYYY-MM-DD (ISO) string to the backend's M/D/YYYY format.
+ * Example: "2026-06-24" → "6/24/2026"
+ */
+const convertToMDYYYY = (isoDate: string): string => {
+  const date = parseDateString(isoDate);
+  if (!date) return isoDate;
+  return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
 };
 
 const getStatusColor = (status?: string): string => {
@@ -74,7 +138,10 @@ const formatApiDate = (dateStr: string): string => {
   try {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+      2,
+      '0',
+    )}-${String(d.getDate()).padStart(2, '0')}`;
   } catch {
     return dateStr;
   }
@@ -88,7 +155,8 @@ const normalizeRecord = (raw: any): LeaveSummaryRecord => {
   const get = (key: string): any => {
     if (raw[key] !== undefined && raw[key] !== null) return raw[key];
     const camelKey = key.charAt(0).toLowerCase() + key.slice(1);
-    if (raw[camelKey] !== undefined && raw[camelKey] !== null) return raw[camelKey];
+    if (raw[camelKey] !== undefined && raw[camelKey] !== null)
+      return raw[camelKey];
     return undefined;
   };
 
@@ -120,7 +188,9 @@ const ApplyLeaveScreen: React.FC = () => {
   /* ── Mode ────────────────────────────────────────────────────────── */
   const [viewMode, setViewMode] = useState<'list' | 'form'>('list');
   const [isEditing, setIsEditing] = useState(false);
-  const [editingRecord, setEditingRecord] = useState<LeaveSummaryRecord | null>(null);
+  const [editingRecord, setEditingRecord] = useState<LeaveSummaryRecord | null>(
+    null,
+  );
 
   /* ── List state ────────────────────────────────────────────────── */
   const [leaves, setLeaves] = useState<LeaveSummaryRecord[]>([]);
@@ -129,13 +199,27 @@ const ApplyLeaveScreen: React.FC = () => {
   const [listError, setListError] = useState<string | null>(null);
 
   /* ── Form state ────────────────────────────────────────────────── */
-  const [leaveDate, setLeaveDate] = useState('');
+  const [leaveDates, setLeaveDates] = useState<string[]>([]);
   const [leaveHours, setLeaveHours] = useState('8');
   const [reason, setReason] = useState('');
   const [appliedDate, setAppliedDate] = useState('');
   const [leaveFile, setLeaveFile] = useState('');
-  const [selectedLeaveType, setSelectedLeaveType] = useState<LeaveTypeOption>(LEAVE_TYPES[0]);
+  const [selectedLeaveType, setSelectedLeaveType] = useState<LeaveType | null>(
+    null,
+  );
   const [isTypePickerVisible, setIsTypePickerVisible] = useState(false);
+
+  /* ── Leave Type fetch state ────────────────────────────────────── */
+  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
+  const [isLoadingTypes, setIsLoadingTypes] = useState(false);
+  const [typesError, setTypesError] = useState<string | null>(null);
+
+  /* ── Date picker state ─────────────────────────────────────────── */
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [pickerDate, setPickerDate] = useState(new Date());
+  const [pickerField, setPickerField] = useState<
+    'addDate' | 'appliedDate' | null
+  >(null);
 
   /* ── Touched / errors ──────────────────────────────────────────── */
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -147,19 +231,52 @@ const ApplyLeaveScreen: React.FC = () => {
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
   /* ── Fetch list ──────────────────────────────────────────────────── */
+  /* ── Fetch leave types ──────────────────────────────────────────── */
+  const fetchLeaveTypes = useCallback(async () => {
+    setIsLoadingTypes(true);
+    setTypesError(null);
+    try {
+      const types = await LeaveService.getLeaveTypeList();
+      setLeaveTypes(types);
+    } catch (err) {
+      setTypesError('Failed to load leave types');
+    } finally {
+      setIsLoadingTypes(false);
+    }
+  }, []);
+
+  /* ── Set default leave type once loaded ─────────────────────────── */
+  useEffect(() => {
+    if (leaveTypes.length > 0 && !selectedLeaveType) {
+      setSelectedLeaveType(leaveTypes[0]);
+    }
+  }, [leaveTypes, selectedLeaveType]);
+
+  /* ── Fetch leave types on first load ──────────────────────────────── */
+  useEffect(() => {
+    fetchLeaveTypes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const fetchLeaves = useCallback(async () => {
     setIsLoading(true);
     setListError(null);
     try {
       const response = await LeaveService.getEmployeeLeaveSummary();
       // eslint-disable-next-line no-console
-      console.log('[ApplyLeaveScreen] Raw response:', JSON.stringify(response, null, 2));
+      console.log(
+        '[ApplyLeaveScreen] Raw response:',
+        JSON.stringify(response, null, 2),
+      );
 
       if (response.IsSuccess) {
         const rawData = response.Data || [];
         const normalized = rawData.map(normalizeRecord);
         // eslint-disable-next-line no-console
-        console.log('[ApplyLeaveScreen] Normalized records:', JSON.stringify(normalized, null, 2));
+        console.log(
+          '[ApplyLeaveScreen] Normalized records:',
+          JSON.stringify(normalized, null, 2),
+        );
         setLeaves(normalized);
       } else {
         setListError(response.Message || 'Failed to fetch leave records');
@@ -167,20 +284,20 @@ const ApplyLeaveScreen: React.FC = () => {
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('[ApplyLeaveScreen] fetchLeaves error:', err);
-      setListError(err instanceof Error ? err.message : 'Failed to fetch leave records');
+      setListError(
+        err instanceof Error ? err.message : 'Failed to fetch leave records',
+      );
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (viewMode === 'list') {
-        fetchLeaves();
-      }
-    }, [viewMode, fetchLeaves]),
-  );
+  useEffect(() => {
+    if (viewMode === 'list') {
+      fetchLeaves();
+    }
+  }, [viewMode, fetchLeaves]);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -190,10 +307,8 @@ const ApplyLeaveScreen: React.FC = () => {
   /* ── Validation ─────────────────────────────────────────────────── */
   const validate = useCallback(() => {
     const newErrors: Record<string, string> = {};
-    if (!leaveDate.trim()) {
-      newErrors.leaveDate = 'Leave date is required';
-    } else if (!validateDate(leaveDate)) {
-      newErrors.leaveDate = 'Enter a valid date (e.g., 6/1/2026)';
+    if (leaveDates.length === 0) {
+      newErrors.leLeaveDate = 'At least one leave date is required';
     }
     if (!leaveHours.trim()) {
       newErrors.leaveHours = 'Leave hours are required';
@@ -208,17 +323,20 @@ const ApplyLeaveScreen: React.FC = () => {
     if (!reason.trim()) {
       newErrors.reason = 'Reason is required';
     }
+    if (!selectedLeaveType?.LeaveTypeID) {
+      newErrors.leaveType = 'Please select a leave type';
+    }
     return newErrors;
-  }, [leaveDate, leaveHours, appliedDate, reason]);
+  }, [leaveDates, leaveHours, appliedDate, reason, selectedLeaveType]);
 
   /* ── Reset form ──────────────────────────────────────────────────── */
   const resetForm = () => {
-    setLeaveDate('');
+    setLeaveDates([]);
     setLeaveHours('8');
     setReason('');
     setAppliedDate(formatISODate(new Date()));
     setLeaveFile('');
-    setSelectedLeaveType(LEAVE_TYPES[0]);
+    setSelectedLeaveType(leaveTypes[0] ?? null);
     setTouched({});
     setErrors({});
     setSubmitMessage(null);
@@ -229,6 +347,9 @@ const ApplyLeaveScreen: React.FC = () => {
 
   /* ── Open form for new leave ────────────────────────────────────── */
   const openNewForm = () => {
+    if (leaveTypes.length === 0) {
+      fetchLeaveTypes();
+    }
     resetForm();
     setIsEditing(false);
     setEditingRecord(null);
@@ -237,12 +358,13 @@ const ApplyLeaveScreen: React.FC = () => {
 
   /* ── Open form for edit ─────────────────────────────────────────── */
   const openEditForm = (record: LeaveSummaryRecord) => {
-    setLeaveDate(record.LeaveDate);
-    setLeaveHours(record.LeaveHours);
-    setReason(record.Reason);
+    setLeaveDates(record.LeaveDate ? [record.LeaveDate] : []);
+    setLeaveHours(record.LeaveHours || '');
+    setReason(record.Reason || '');
     setAppliedDate(record.AppliedDate || formatISODate(new Date()));
     setLeaveFile(record.LeaveFile || '');
-    const matchedType = LEAVE_TYPES.find(t => t.id === record.LeaveTypeID) || LEAVE_TYPES[0];
+    const matchedType =
+      leaveTypes.find(t => t.LeaveTypeID === record.LeaveTypeID) ?? null;
     setSelectedLeaveType(matchedType);
     setTouched({});
     setErrors({});
@@ -256,10 +378,11 @@ const ApplyLeaveScreen: React.FC = () => {
   const handleSubmit = useCallback(async () => {
     const validationErrors = validate();
     setTouched({
-      leaveDate: true,
+      leaveDates: true,
       leaveHours: true,
       appliedDate: true,
       reason: true,
+      leaveType: true,
     });
 
     if (Object.keys(validationErrors).length > 0) {
@@ -279,7 +402,7 @@ const ApplyLeaveScreen: React.FC = () => {
           LeaveHours: leaveHours,
           CompensationRequired: 1,
           CompensationDate: formatISODate(new Date()),
-          LeaveDetailsID: editingRecord.LeaveDetailsID,
+          LeaveDetailsID: editingRecord.LeaveDetailsID || '',
         };
 
         const response = await LeaveService.updateEmployeeLeave(updateDetail);
@@ -290,6 +413,7 @@ const ApplyLeaveScreen: React.FC = () => {
           setTimeout(() => {
             resetForm();
             setViewMode('list');
+            fetchLeaves();
           }, 1500);
         } else {
           setSubmitSuccess(false);
@@ -297,20 +421,23 @@ const ApplyLeaveScreen: React.FC = () => {
         }
       } else {
         /* ── CREATE ───────────────────────────────────────────────── */
-        const leaveDetail: LeaveDetail = {
-          LeaveDate: leaveDate,
+        const leaveDetails: LeaveDetail[] = leaveDates.map(date => ({
+          LeaveDate: convertToMDYYYY(date),
           LeaveHours: leaveHours,
           AppliedDate: appliedDate,
           Reason: reason.trim(),
-          LeaveFile: leaveFile,
-          LeaveTypeID: selectedLeaveType.id,
-        };
+          LeaveFile: leaveFile || '',
+          LeaveTypeID: selectedLeaveType!.LeaveTypeID,
+        }));
 
-        const leaveDetailsPayload = JSON.stringify([leaveDetail]);
+        const leaveDetailsPayload = JSON.stringify(leaveDetails);
         // eslint-disable-next-line no-console
-        console.log('[ApplyLeaveScreen] POST LeaveDetails payload:', leaveDetailsPayload);
+        console.log(
+          '[ApplyLeaveScreen] POST LeaveDetails payload:',
+          leaveDetailsPayload,
+        );
 
-        const response = await LeaveService.postEmployeeLeave(leaveDetail);
+        const response = await LeaveService.postEmployeeLeave(leaveDetails);
 
         if (response.IsSuccess) {
           setSubmitSuccess(true);
@@ -318,6 +445,7 @@ const ApplyLeaveScreen: React.FC = () => {
           setTimeout(() => {
             resetForm();
             setViewMode('list');
+            fetchLeaves();
           }, 1500);
         } else {
           setSubmitSuccess(false);
@@ -332,7 +460,17 @@ const ApplyLeaveScreen: React.FC = () => {
     } finally {
       setIsSubmitting(false);
     }
-  }, [leaveDate, leaveHours, appliedDate, reason, leaveFile, selectedLeaveType, isEditing, editingRecord, validate]);
+  }, [
+    leaveDates,
+    leaveHours,
+    appliedDate,
+    reason,
+    leaveFile,
+    selectedLeaveType,
+    isEditing,
+    editingRecord,
+    validate,
+  ]);
 
   /* ── Delete handler ────────────────────────────────────────────── */
   const handleDelete = (record: LeaveSummaryRecord) => {
@@ -340,20 +478,30 @@ const ApplyLeaveScreen: React.FC = () => {
       'Delete Leave',
       `Are you sure you want to delete this leave record for ${record.LeaveDate}?`,
       [
-        {text: 'Cancel', style: 'cancel'},
+        { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             try {
-              const response = await LeaveService.deleteEmployeeLeave(record.LeaveId);
+              const response = await LeaveService.deleteEmployeeLeave(
+                record.LeaveId,
+              );
               if (response.IsSuccess) {
-                setLeaves(prev => prev.filter(l => l.LeaveId !== record.LeaveId));
+                setLeaves(prev =>
+                  prev.filter(l => l.LeaveId !== record.LeaveId),
+                );
               } else {
-                Alert.alert('Error', response.Message || 'Failed to delete leave');
+                Alert.alert(
+                  'Error',
+                  response.Message || 'Failed to delete leave',
+                );
               }
             } catch (err) {
-              Alert.alert('Error', err instanceof Error ? err.message : 'Failed to delete leave');
+              Alert.alert(
+                'Error',
+                err instanceof Error ? err.message : 'Failed to delete leave',
+              );
             }
           },
         },
@@ -364,9 +512,6 @@ const ApplyLeaveScreen: React.FC = () => {
   /* ── Input helpers ──────────────────────────────────────────────── */
   const handleChangeText = (field: string, value: string) => {
     switch (field) {
-      case 'leaveDate':
-        setLeaveDate(value);
-        break;
       case 'leaveHours':
         setLeaveHours(value);
         break;
@@ -381,30 +526,98 @@ const ApplyLeaveScreen: React.FC = () => {
         break;
     }
     setErrors(prev => {
-      const newErrors = {...prev};
+      const newErrors = { ...prev };
       delete newErrors[field];
       return newErrors;
     });
   };
 
-  const selectLeaveType = (option: LeaveTypeOption) => {
+  const selectLeaveType = (option: LeaveType) => {
     setSelectedLeaveType(option);
     setIsTypePickerVisible(false);
+    setErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors.leaveType;
+      return newErrors;
+    });
+  };
+
+  /* ── Date picker helpers ───────────────────────────────────── */
+  const openDatePicker = (field: 'addDate' | 'appliedDate') => {
+    let date = new Date();
+    if (field === 'appliedDate' && appliedDate) {
+      const parsed = parseDateString(appliedDate);
+      if (parsed) date = parsed;
+    }
+    setPickerDate(date);
+    setPickerField(field);
+    setShowDatePicker(true);
+  };
+
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
+    if (selectedDate) {
+      setPickerDate(selectedDate);
+      const formatted = formatISODate(selectedDate);
+      if (pickerField === 'addDate') {
+        setLeaveDates(prev => {
+          if (prev.includes(formatted)) return prev;
+          return [...prev, formatted];
+        });
+        setTouched(prev => ({ ...prev, leaveDates: true }));
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors.leaveDates;
+          return newErrors;
+        });
+      }
+      if (pickerField === 'appliedDate') {
+        setAppliedDate(formatted);
+        setTouched(prev => ({ ...prev, appliedDate: true }));
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors.appliedDate;
+          return newErrors;
+        });
+      }
+    }
+    if (Platform.OS !== 'ios') {
+      setPickerField(null);
+    }
+  };
+
+  const closePicker = () => {
+    setShowDatePicker(false);
+    setPickerField(null);
   };
 
   /* ── Leave Card ──────────────────────────────────────────────────── */
-  const LeaveCard: React.FC<{record: LeaveSummaryRecord}> = ({record}) => (
+  const LeaveCard: React.FC<{ record: LeaveSummaryRecord }> = ({ record }) => (
     <View style={styles.card}>
       <View style={styles.cardTop}>
         <View style={styles.cardHeader}>
-          <View style={[styles.leaveTypeDot, {backgroundColor: Colors.primary}]} />
+          <View
+            style={[styles.leaveTypeDot, { backgroundColor: Colors.primary }]}
+          />
           <Text style={styles.cardTitle} numberOfLines={1}>
             Leave Request
           </Text>
         </View>
         {record.Status && (
-          <View style={[styles.statusBadge, {backgroundColor: getStatusColor(record.Status) + '20'}]}>
-            <Text style={[styles.statusText, {color: getStatusColor(record.Status)}]}>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: getStatusColor(record.Status) + '20' },
+            ]}
+          >
+            <Text
+              style={[
+                styles.statusText,
+                { color: getStatusColor(record.Status) },
+              ]}
+            >
               {record.Status}
             </Text>
           </View>
@@ -441,10 +654,16 @@ const ApplyLeaveScreen: React.FC = () => {
       </Text>
 
       <View style={styles.cardActions}>
-        <TouchableOpacity style={styles.editButton} onPress={() => openEditForm(record)}>
+        <TouchableOpacity
+          style={styles.editButton}
+          onPress={() => openEditForm(record)}
+        >
           <Text style={styles.editButtonText}>Edit</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.deleteButton} onPress={() => handleDelete(record)}>
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={() => handleDelete(record)}
+        >
           <Text style={styles.deleteButtonText}>Delete</Text>
         </TouchableOpacity>
       </View>
@@ -478,25 +697,40 @@ const ApplyLeaveScreen: React.FC = () => {
           ) : listError ? (
             <View style={styles.centered}>
               <Text style={styles.errorText}>{listError}</Text>
-              <TouchableOpacity onPress={fetchLeaves} style={styles.retryButton}>
+              <TouchableOpacity
+                onPress={fetchLeaves}
+                style={styles.retryButton}
+              >
                 <Text style={styles.retryButtonText}>Retry</Text>
               </TouchableOpacity>
             </View>
           ) : leaves.length === 0 ? (
             <ScrollView
               contentContainerStyle={styles.centered}
-              refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
+              refreshControl={
+                <RefreshControl
+                  refreshing={isRefreshing}
+                  onRefresh={handleRefresh}
+                />
+              }
             >
               <Text style={styles.emptyText}>No leave records found.</Text>
-              <Text style={styles.emptySubText}>Tap "Apply" to create one.</Text>
+              <Text style={styles.emptySubText}>
+                Tap "Apply" to create one.
+              </Text>
             </ScrollView>
           ) : (
             <ScrollView
               contentContainerStyle={styles.listContent}
-              refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
+              refreshControl={
+                <RefreshControl
+                  refreshing={isRefreshing}
+                  onRefresh={handleRefresh}
+                />
+              }
             >
-              {leaves.map(record => (
-                <LeaveCard key={record.LeaveId} record={record} />
+              {leaves.map((record, index) => (
+                <LeaveCard key={`${record.LeaveId}-${index}`} record={record} />
               ))}
             </ScrollView>
           )}
@@ -524,27 +758,41 @@ const ApplyLeaveScreen: React.FC = () => {
                 <View style={styles.fieldGroup}>
                   <Text style={styles.label}>Leave Type</Text>
                   <TouchableOpacity
-                    style={styles.selectInput}
+                    style={[
+                      styles.selectInput,
+                      touched.leaveType &&
+                        errors.leaveType &&
+                        styles.inputError,
+                    ]}
                     onPress={() => setIsTypePickerVisible(!isTypePickerVisible)}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.selectText}>
-                      {selectedLeaveType.label}
-                    </Text>
+                    {isLoadingTypes ? (
+                      <ActivityIndicator size="small" color={Colors.primary} />
+                    ) : (
+                      <Text style={styles.selectText}>
+                        {selectedLeaveType?.LeaveTypeDescription ??
+                          typesError ??
+                          'Select leave type'}
+                      </Text>
+                    )}
                     <Text style={styles.selectArrow}>
                       {isTypePickerVisible ? '▲' : '▼'}
                     </Text>
                   </TouchableOpacity>
+                  {touched.leaveType && errors.leaveType && (
+                    <Text style={styles.errorText}>{errors.leaveType}</Text>
+                  )}
                 </View>
 
                 {isTypePickerVisible && (
                   <View style={styles.typePickerDropdown}>
-                    {LEAVE_TYPES.map(option => (
+                    {leaveTypes.map((option, index) => (
                       <TouchableOpacity
-                        key={option.id}
+                        key={`${option.LeaveTypeID}-${index}`}
                         style={[
                           styles.typeOption,
-                          selectedLeaveType.id === option.id &&
+                          selectedLeaveType?.LeaveTypeID === option.LeaveTypeID &&
                             styles.typeOptionSelected,
                         ]}
                         onPress={() => selectLeaveType(option)}
@@ -553,13 +801,13 @@ const ApplyLeaveScreen: React.FC = () => {
                         <Text
                           style={[
                             styles.typeOptionText,
-                            selectedLeaveType.id === option.id &&
+                            selectedLeaveType?.LeaveTypeID === option.LeaveTypeID &&
                               styles.typeOptionTextSelected,
                           ]}
                         >
-                          {option.label}
+                          {option.LeaveTypeDescription}
                         </Text>
-                        {selectedLeaveType.id === option.id && (
+                        {selectedLeaveType?.LeaveTypeID === option.LeaveTypeID && (
                           <Text style={styles.checkmark}>✓</Text>
                         )}
                       </TouchableOpacity>
@@ -567,23 +815,45 @@ const ApplyLeaveScreen: React.FC = () => {
                   </View>
                 )}
 
-                {/* ── Leave Date ─────────────────────────────────────── */}
+                {/* ── Leave Dates ────────────────────────────────────── */}
                 <View style={styles.fieldGroup}>
-                  <Text style={styles.label}>Leave Date</Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      touched.leaveDate && errors.leaveDate && styles.inputError,
-                    ]}
-                    placeholder="e.g., 6/1/2026"
-                    placeholderTextColor={Colors.textSecondary}
-                    value={leaveDate}
-                    onChangeText={text => handleChangeText('leaveDate', text)}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
-                  {touched.leaveDate && errors.leaveDate && (
-                    <Text style={styles.errorText}>{errors.leaveDate}</Text>
+                  <Text style={styles.label}>Leave Dates</Text>
+                  <View style={styles.dateChipsContainer}>
+                    {leaveDates.map((dateStr, idx) => (
+                      <View key={idx} style={styles.dateChip}>
+                        <Text style={styles.dateChipText}>
+                          {formatDisplayDate(dateStr)}
+                        </Text>
+                        <TouchableOpacity
+                          onPress={() =>
+                            setLeaveDates(prev =>
+                              prev.filter((_, i) => i !== idx),
+                            )
+                          }
+                          hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+                        >
+                          <Text style={styles.dateChipRemove}>x</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                    <TouchableOpacity
+                      style={[
+                        styles.input,
+                        styles.dateInput,
+                        touched.leaveDates &&
+                          errors.leaveDates &&
+                          styles.inputError,
+                      ]}
+                      onPress={() => openDatePicker('addDate')}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.dateInputPlaceholder}>
+                        + Add date
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                  {touched.leaveDates && errors.leaveDates && (
+                    <Text style={styles.errorText}>{errors.leaveDates}</Text>
                   )}
                 </View>
 
@@ -593,7 +863,9 @@ const ApplyLeaveScreen: React.FC = () => {
                   <TextInput
                     style={[
                       styles.input,
-                      touched.leaveHours && errors.leaveHours && styles.inputError,
+                      touched.leaveHours &&
+                        errors.leaveHours &&
+                        styles.inputError,
                     ]}
                     placeholder="e.g., 8"
                     placeholderTextColor={Colors.textSecondary}
@@ -609,18 +881,27 @@ const ApplyLeaveScreen: React.FC = () => {
                 {/* ── Applied Date ─────────────────────────────────────── */}
                 <View style={styles.fieldGroup}>
                   <Text style={styles.label}>Applied Date</Text>
-                  <TextInput
+                  <TouchableOpacity
                     style={[
                       styles.input,
-                      touched.appliedDate && errors.appliedDate && styles.inputError,
+                      styles.dateInput,
+                      touched.appliedDate &&
+                        errors.appliedDate &&
+                        styles.inputError,
                     ]}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor={Colors.textSecondary}
-                    value={appliedDate}
-                    onChangeText={text => handleChangeText('appliedDate', text)}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
+                    onPress={() => openDatePicker('appliedDate')}
+                    activeOpacity={0.7}
+                  >
+                    {appliedDate ? (
+                      <Text style={styles.dateInputText}>
+                        {formatDisplayDate(appliedDate)}
+                      </Text>
+                    ) : (
+                      <Text style={styles.dateInputPlaceholder}>
+                        Select date
+                      </Text>
+                    )}
+                  </TouchableOpacity>
                   {touched.appliedDate && errors.appliedDate && (
                     <Text style={styles.errorText}>{errors.appliedDate}</Text>
                   )}
@@ -632,7 +913,9 @@ const ApplyLeaveScreen: React.FC = () => {
                   <TextInput
                     style={[
                       styles.input,
-                      touched.leaveFile && errors.leaveFile && styles.inputError,
+                      touched.leaveFile &&
+                        errors.leaveFile &&
+                        styles.inputError,
                     ]}
                     placeholder="File path or attachment (optional)"
                     placeholderTextColor={Colors.textSecondary}
@@ -673,7 +956,9 @@ const ApplyLeaveScreen: React.FC = () => {
                   <View
                     style={[
                       styles.feedbackBox,
-                      submitSuccess ? styles.feedbackSuccess : styles.feedbackError,
+                      submitSuccess
+                        ? styles.feedbackSuccess
+                        : styles.feedbackError,
                     ]}
                   >
                     <Text
@@ -688,9 +973,35 @@ const ApplyLeaveScreen: React.FC = () => {
                   </View>
                 )}
 
+                {/* ── Date Picker ───────────────────────────────────── */}
+                {showDatePicker && (
+                  <View style={styles.pickerContainer}>
+                    <DateTimePicker
+                      value={pickerDate}
+                      mode="date"
+                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                      onValueChange={(e, date) => onDateChange(e, date)}
+                      minimumDate={new Date(2000, 0, 1)}
+                      maximumDate={new Date(2099, 11, 31)}
+                    />
+                    {Platform.OS === 'ios' && (
+                      <TouchableOpacity
+                        style={styles.pickerDoneBtn}
+                        onPress={closePicker}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.pickerDoneText}>Done</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
+
                 {/* ── Submit / Cancel ────────────────────────────────── */}
                 <TouchableOpacity
-                  style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
+                  style={[
+                    styles.submitButton,
+                    isSubmitting && styles.submitButtonDisabled,
+                  ]}
                   onPress={handleSubmit}
                   disabled={isSubmitting}
                   activeOpacity={0.7}
@@ -701,8 +1012,7 @@ const ApplyLeaveScreen: React.FC = () => {
                     <Text style={styles.submitButtonText}>
                       {isEditing ? 'Update Leave' : 'Submit Leave Request'}
                     </Text>
-                  )
-                              }
+                  )}
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -728,11 +1038,16 @@ const ApplyLeaveScreen: React.FC = () => {
 
 const getTypeColor = (typeId: string): string => {
   switch (typeId) {
-    case '27ADC15C-130F-458A-BF20-2F44D092B28B': return '#22C55E'; // Casual - green
-    case '2E5A2B6C-3D4E-4F5A-6B7C-8D9E0A1B2C3D': return '#EF4444'; // Sick - red
-    case '3F6B3C7D-4E5F-5A6B-7C8D-9E0A1B2C3D4E': return '#3B82F6'; // Earned - blue
-    case '4A7C4D8E-5E6F-6A7B-8C9D-0E1A2B3C4D5E': return '#F59E0B'; // Unpaid - orange
-    default: return Colors.primary;
+    case '27ADC15C-130F-458A-BF20-2F44D092B28B':
+      return '#22C55E'; // Casual - green
+    case '2E5A2B6C-3D4E-4F5A-6B7C-8D9E0A1B2C3D':
+      return '#EF4444'; // Sick - red
+    case '3F6B3C7D-4E5F-5A6B-7C8D-9E0A1B2C3D4E':
+      return '#3B82F6'; // Earned - blue
+    case '4A7C4D8E-5E6F-6A7B-8C9D-0E1A2B3C4D5E':
+      return '#F59E0B'; // Unpaid - orange
+    default:
+      return Colors.primary;
   }
 };
 
@@ -824,7 +1139,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     elevation: 2,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 3,
   },
@@ -996,7 +1311,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     elevation: 3,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
@@ -1040,7 +1355,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     elevation: 2,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
@@ -1096,6 +1411,67 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
+  },
+
+  /* ── Date chips ──────────────────────────────────────── */
+  dateChipsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 4,
+  },
+  dateChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary + '15',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    gap: 6,
+  },
+  dateChipText: {
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  dateChipRemove: {
+    fontSize: 14,
+    color: Colors.danger,
+    fontWeight: '700',
+  },
+  /* ── Date picker styles ─────────────────────────────────── */
+  dateInput: {
+    justifyContent: 'center',
+  },
+  dateInputText: {
+    fontSize: 15,
+    color: Colors.dark,
+  },
+  dateInputPlaceholder: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+  },
+  pickerContainer: {
+    backgroundColor: Colors.white,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingVertical: 12,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  pickerDoneBtn: {
+    marginTop: 8,
+    alignSelf: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    backgroundColor: Colors.primary,
+    borderRadius: 8,
+  },
+  pickerDoneText: {
+    color: Colors.white,
+    fontWeight: '600',
+    fontSize: 15,
   },
 });
 
