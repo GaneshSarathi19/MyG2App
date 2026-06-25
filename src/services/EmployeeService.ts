@@ -1,5 +1,4 @@
 import axiosClient from '../api/axiosClient';
-import {API_BASE_URL} from '../api/config';
 import {EmployeeMasterListResponse} from '../api/interfaces/EmployeeTypes';
 import {store} from '../redux/store';
 
@@ -20,9 +19,9 @@ export const EmployeeService = {
       IsActive: 'true',
     });
 
-    const url = `${API_BASE_URL}/GetData?query=GetEmployeeMasterList&filters=${encodeURIComponent(filters)}`;
-
-    const {data} = await axiosClient.get<EmployeeMasterListResponse>(url);
+    const {data} = await axiosClient.get<EmployeeMasterListResponse>(
+      `/GetData?query=GetEmployeeMasterList&filters=${encodeURIComponent(filters)}`,
+    );
     return data;
   },
 };

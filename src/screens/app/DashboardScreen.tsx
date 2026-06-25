@@ -60,57 +60,37 @@ const buildStats = (department: string | undefined) => [
 ];
 
 
+const CardHero: React.FC<{ abbr: string }> = ({ abbr }) => (
+  <View style={[styles.cardHero, { backgroundColor: Colors.secondary }]}>
+    <Text style={styles.cardHeroAbbr}>{abbr}</Text>
+  </View>
+);
+
 const ActionCard: React.FC<{
   item: CardItem;
   onPress?: () => void;
 }> = ({ item: d, onPress }) => (
   <TouchableOpacity
     style={styles.card}
-    activeOpacity={0.82}
+    activeOpacity={0.88}
     onPress={onPress}
   >
     {d.badge !== undefined && (
-      <View
-        style={[
-          styles.badge,
-          { backgroundColor: d.colors },
-        ]}
-      >
-        <Text style={styles.badgeText}>
-          {d.badge}
-        </Text>
+      <View style={styles.badgeWrap}>
+        <Text style={styles.badgeText}>{d.badge}</Text>
       </View>
     )}
 
-    <View
-      style={[
-        styles.iconWrap,
-        {
-          backgroundColor: `${d.colors}10`,
-          borderColor: `${d.colors}40`,
-        },
-      ]}
-    >
-      <Text
-        style={[
-          styles.iconChar,
-          { color: d.colors },
-        ]}
-      >
-        {d.abbr}
+    <CardHero abbr={d.abbr} />
+
+    <View style={styles.cardBody}>
+      <Text style={styles.cardTitle} numberOfLines={1}>
+        {d.title}
+      </Text>
+      <Text style={styles.cardSub} numberOfLines={1}>
+        {d.sub}
       </Text>
     </View>
-
-    <Text
-      style={styles.cardTitle}
-      numberOfLines={1}
-    >
-      {d.title}
-    </Text>
-
-    <Text style={styles.cardSub}>
-      {d.sub}
-    </Text>
   </TouchableOpacity>
 );;
  
@@ -412,41 +392,54 @@ headerProfileText: {
   card: {
     width: COL_WIDTH,
     backgroundColor: Colors.white,
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: 16,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    overflow: 'hidden',
+  },
+  cardHero: {
+    height: 64,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  cardHeroAbbr: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: Colors.white,
+    letterSpacing: 0.5,
+    zIndex: 2,
+  },
+  cardBody: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  cardTitle: { fontSize: 13, fontWeight: '700', color: Colors.textPrimary, marginBottom: 2 },
+  cardSub: { fontSize: 11, color: Colors.textSecondary },
+
+  // Badge
+  badgeWrap: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: Colors.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 5,
+    zIndex: 10,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    position: 'relative',
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
-  iconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-    borderWidth: 1,
-  },
-  iconChar: { fontSize: 14, fontWeight: '700' },
-  cardTitle: { fontSize: 13, fontWeight: '700', color: Colors.textPrimary },
-  cardSub: { fontSize: 11, color: Colors.textSecondary, marginTop: 2 },
-
-  // Badge
-  badge: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-  },
-  badgeText: { color: Colors.white, fontSize: 10, fontWeight: '700' },
+  badgeText: { color: Colors.danger, fontSize: 11, fontWeight: '800' },
 
   // Announcements
   annCard: {

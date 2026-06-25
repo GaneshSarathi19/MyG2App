@@ -212,7 +212,7 @@ export const callGetList = async <TResponseData = unknown,>(
     ...filterData,
   };
   const filtersParam = encodeURIComponent(JSON.stringify(filters));
-  const url = `${API_BASE_URL}/GetData?query=${encodeURIComponent(selectedData)}&filters=${filtersParam}`;
+  const url = `/GetData?query=${encodeURIComponent(selectedData)}&filters=${filtersParam}`;
 
   const response = await axiosClient.get<any>(url);
 

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   TextInput,
   Pressable,
+  FlatList,
 } from 'react-native';
 import AppScreen from '../../components/layout/AppScreen';
 import AppHeader from '../../components/common/AppHeader';
@@ -17,6 +18,10 @@ import useDebouncedValue from '../../utils/useDebouncedValue';
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
 
+type ListItem =
+  | { type: 'letter'; letter: string; count: number }
+  | { type: 'employee'; data: EmployeeRecord };
+
 interface EmployeeCardProps {
   item: EmployeeRecord;
 }
@@ -27,6 +32,26 @@ interface FilterChipBarProps {
   onToggle: (value: string) => void;
   label: string;
 }
+
+const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+const AVATAR_COLORS = [
+  '#003C64', '#F86F18', '#C5122C', '#2E7D32', '#6A1B9A',
+  '#00838F', '#E65100', '#37474F', '#01579B', '#827717',
+];
+
+/* ─── Helpers ──────────────────────────────────────────────────────────── */
+
+const hashName = (name: string): number => {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return Math.abs(hash);
+};
+
+const getAvatarColor = (name: string): string =>
+  AVATAR_COLORS[hashName(name) % AVATAR_COLORS.length];
 
 /* ─── Filter Chip Bar ────────────────────────────────────────────────── */
 
@@ -43,23 +68,26 @@ const FilterChipBar: React.FC<FilterChipBarProps> = ({
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.chipList}
     >
-      {options.map((opt) => (
-        <Pressable
-          key={opt}
-          onPress={() => onToggle(opt)}
-          style={[styles.chip, selected.has(opt) && styles.chipActive]}
-        >
-          <Text
-            style={[
-              styles.chipText,
-              selected.has(opt) && styles.chipTextActive,
-            ]}
-            numberOfLines={1}
+      {options.map((opt) => {
+        const active = selected.has(opt);
+        return (
+          <Pressable
+            key={opt}
+            onPress={() => onToggle(opt)}
+            style={[styles.chip, active && styles.chipActive]}
           >
-            {opt}
-          </Text>
-        </Pressable>
-      ))}
+            <Text
+              style={[
+                styles.chipText,
+                active && styles.chipTextActive,
+              ]}
+              numberOfLines={1}
+            >
+              {opt}
+            </Text>
+          </Pressable>
+        );
+      })}
     </ScrollView>
   </View>
 );
@@ -71,7 +99,7 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ item }) => {
     const parts = item.Name.trim()
       .split(' ')
       .filter(Boolean)
-      .filter((p) => /^[A-Za-z]/.test(p)); // skip parts starting with non-letter (e.g. "(Contractor)")
+      .filter((p) => /^[A-Za-z]/.test(p));
 
     if (parts.length >= 2) {
       return `${parts[0][0].toUpperCase()}${parts[parts.length - 1][0].toUpperCase()}`;
@@ -82,45 +110,68 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ item }) => {
     return item.Name.trim().charAt(0).toUpperCase();
   }, [item.Name]);
 
+  const avatarColor = useMemo(() => getAvatarColor(item.Name), [item.Name]);
+
   return (
     <View style={styles.empCard}>
-      <View style={styles.empTopRow}>
-        <View style={styles.empAvatar}>
-          <Text style={styles.empAvatarText}>{initials}</Text>
+      <View style={styles.empCardAccent} />
+      <View style={styles.empCardBody}>
+        <View style={styles.empTopRow}>
+          <View style={[styles.empAvatar, { backgroundColor: avatarColor + '18' }]}>
+            <Text style={[styles.empAvatarText, { color: avatarColor }]}>
+              {initials}
+            </Text>
+          </View>
+          <View style={styles.empInfo}>
+            <Text style={styles.empName} numberOfLines={1}>
+              {item.Name}
+            </Text>
+            <View style={styles.empDesignationRow}>
+              <Text style={styles.empDesignation}>{item.Designation}</Text>
+            </View>
+          </View>
         </View>
-        <View style={styles.empInfo}>
-          <Text style={styles.empName} numberOfLines={1}>
-            {item.Name}
-          </Text>
-          <Text style={styles.empDesignation}>{item.Designation}</Text>
-        </View>
-      </View>
 
-      <View style={styles.empDivider} />
-
-      <View style={styles.empBottomRow}>
-        <View style={styles.empMeta}>
-          <Text style={styles.empMetaLabel}>Department</Text>
-          <Text style={styles.empMetaValue} numberOfLines={1}>
-            {item.Department}
-          </Text>
-        </View>
-        <View style={styles.empMeta}>
-          <Text style={styles.empMetaLabel}>Mentor</Text>
-          <Text style={styles.empMetaValue} numberOfLines={1}>
-            {item.Mentor}
-          </Text>
+        <View style={styles.empBottomRow}>
+          <View style={styles.empMeta}>
+            <Text style={styles.empMetaLabel}>Department</Text>
+            <Text style={styles.empMetaValue} numberOfLines={1}>
+              {item.Department}
+            </Text>
+          </View>
+          <View style={styles.empMetaDivider} />
+          <View style={styles.empMeta}>
+            <Text style={styles.empMetaLabel}>Backup Lead</Text>
+            <Text style={styles.empMetaValue} numberOfLines={1}>
+              {item.Mentor}
+            </Text>
+          </View>
         </View>
       </View>
     </View>
   );
 };
 
+/* ─── Letter Section Header ──────────────────────────────────────────── */
+
+const LetterHeader: React.FC<{ letter: string; count: number }> = ({ letter, count }) => (
+  <View style={styles.letterHeader}>
+    <View style={styles.letterHeaderContent}>
+      <Text style={styles.letterHeaderText}>{letter}</Text>
+      <View style={styles.letterBadge}>
+        <Text style={styles.letterBadgeText}>{count}</Text>
+      </View>
+    </View>
+    <View style={styles.letterHeaderLine} />
+  </View>
+);
+
 /* ─── Screen ─────────────────────────────────────────────────────────── */
 
 const EmployeesScreen: React.FC = () => {
   const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const flatListRef = useRef<FlatList<ListItem> | null>(null);
 
   /* Search + Filters */
   const [searchQuery, setSearchQuery] = useState('');
@@ -144,6 +195,16 @@ const EmployeesScreen: React.FC = () => {
       designations: desigs,
     };
   }, [employees]);
+
+  /* ── Clear filters helper ───────────────────────────────────────── */
+
+  const hasActiveFilters = selectedDepts.size > 0 || selectedDesignations.size > 0 || searchQuery.trim().length > 0;
+
+  const clearFilters = useCallback(() => {
+    setSelectedDepts(new Set());
+    setSelectedDesignations(new Set());
+    setSearchQuery('');
+  }, []);
 
   /* ── Fetch Data ────────────────────────────────────────────────── */
 
@@ -211,18 +272,89 @@ const EmployeesScreen: React.FC = () => {
       result = result.filter((e) => selectedDesignations.has(e.Designation));
     }
 
+    // Sort alphabetically by name
+    result.sort((a, b) => a.Name.localeCompare(b.Name));
+
     return result;
   }, [debouncedSearch, selectedDepts, selectedDesignations, employees]);
+
+  /* ── Build Sectioned Data ──────────────────────────────────────── */
+
+  const sectionedData = useMemo<ListItem[]>(() => {
+    const items: ListItem[] = [];
+    let currentLetter = '';
+    let letterCount = 0;
+
+    filtered.forEach((emp) => {
+      const firstLetter = (emp.Name?.charAt(0) || '#').toUpperCase();
+      if (firstLetter !== currentLetter) {
+        if (currentLetter) {
+          // Update previous letter header's count
+          const prevHeader = items[items.length - 1 - letterCount];
+          if (prevHeader && prevHeader.type === 'letter') {
+            (prevHeader as { type: 'letter'; letter: string; count: number }).count = letterCount;
+          }
+        }
+        currentLetter = firstLetter;
+        letterCount = 0;
+        items.push({ type: 'letter', letter: currentLetter, count: 0 });
+      }
+      letterCount++;
+      items.push({ type: 'employee', data: emp });
+    });
+
+    // Update last letter header's count
+    if (currentLetter && letterCount > 0) {
+      const headerIndex = items.length - 1 - letterCount;
+      if (headerIndex >= 0 && items[headerIndex] && items[headerIndex].type === 'letter') {
+        (items[headerIndex] as { type: 'letter'; letter: string; count: number }).count = letterCount;
+      }
+    }
+
+    return items;
+  }, [filtered]);
+
+  /* ── Available Letters ─────────────────────────────────────────── */
+
+  const availableLetters = useMemo<string[]>(() => {
+    const letters = new Set<string>();
+    filtered.forEach((emp) => {
+      const letter = (emp.Name?.charAt(0) || '').toUpperCase();
+      if (letter) { letters.add(letter); }
+    });
+    return ALPHABET.filter((l) => letters.has(l));
+  }, [filtered]);
+
+  /* ── Alphabet Scroller ─────────────────────────────────────────── */
+
+  const scrollToLetter = useCallback((letter: string) => {
+    const index = sectionedData.findIndex(
+      (item) => item.type === 'letter' && item.letter === letter,
+    );
+    if (index >= 0) {
+      flatListRef.current?.scrollToIndex({
+        index,
+        animated: true,
+        viewPosition: 0,
+      });
+    }
+  }, [sectionedData]);
 
   /* ── Render ──────────────────────────────────────────────────────── */
 
   const keyExtractor = useCallback(
-    (item: EmployeeRecord) => item.EmployeeId,
+    (item: ListItem, _index: number) =>
+      item.type === 'letter' ? `letter-${item.letter}` : item.data.EmployeeId,
     [],
   );
 
   const renderItem = useCallback(
-    ({ item }: { item: EmployeeRecord }) => <EmployeeCard item={item} />,
+    ({ item }: { item: ListItem }) => {
+      if (item.type === 'letter') {
+        return <LetterHeader letter={item.letter} count={item.count} />;
+      }
+      return <EmployeeCard item={item.data} />;
+    },
     [],
   );
 
@@ -232,15 +364,23 @@ const EmployeesScreen: React.FC = () => {
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search by name, designation..."
-          placeholderTextColor={Colors.textSecondary}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
+        <View style={styles.searchInner}>
+          <Text style={styles.searchIcon}>&#128269;</Text>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search by name, designation..."
+            placeholderTextColor={Colors.textSecondary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {searchQuery.length > 0 && (
+            <Pressable onPress={() => setSearchQuery('')} style={styles.searchClear}>
+              <Text style={styles.searchClearText}>x</Text>
+            </Pressable>
+          )}
+        </View>
       </View>
 
       {/* Filter Chips */}
@@ -259,23 +399,55 @@ const EmployeesScreen: React.FC = () => {
         />
       </View>
 
-      {/* Results count */}
+      {/* Results count + Clear filters */}
       <View style={styles.resultsRow}>
-        <Text style={styles.resultsText}>
-          {filtered.length} {filtered.length === 1 ? 'employee' : 'employees'}
-        </Text>
+        <View style={styles.resultsPill}>
+          <Text style={styles.resultsText}>
+            {filtered.length} {filtered.length === 1 ? 'employee' : 'employees'}
+          </Text>
+        </View>
+        {hasActiveFilters && filtered.length > 0 && (
+          <Pressable onPress={clearFilters} style={styles.clearFilterButton}>
+            <Text style={styles.clearFilterText}>Clear filters</Text>
+          </Pressable>
+        )}
       </View>
 
-      {/* Employee List */}
+      {/* Employee List with Alphabet Scroller */}
       <View style={styles.listContainer}>
         <ScrollableList
-          data={filtered}
+          data={sectionedData}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
           isLoading={isLoading}
+          scrollToTopThreshold={400}
+          flatListRef={flatListRef}
           emptyText="No employees found"
           contentContainerStyle={styles.listContent}
+          onScrollToIndexFailed={(info) => {
+            const wait = new Promise((resolve) => setTimeout(resolve, 500));
+            wait.then(() => {
+              flatListRef.current?.scrollToIndex({
+                index: info.index,
+                animated: true,
+                viewPosition: 0,
+              });
+            });
+          }}
         />
+        {availableLetters.length > 1 && (
+          <View style={styles.alphabetBar}>
+            {availableLetters.map((letter) => (
+              <Pressable
+                key={letter}
+                onPress={() => scrollToLetter(letter)}
+                style={styles.alphabetItem}
+              >
+                <Text style={styles.alphabetText}>{letter}</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
       </View>
     </AppScreen>
   );
@@ -290,16 +462,42 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 4,
   },
-  searchInput: {
-    height: 40,
-    borderRadius: 8,
+  searchInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: Colors.white,
     borderWidth: 1,
     borderColor: Colors.border,
+    borderRadius: 12,
     paddingHorizontal: 12,
+    height: 42,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+  },
+  searchIcon: {
+    fontSize: 14,
+    marginRight: 8,
+    opacity: 0.5,
+  },
+  searchInput: {
+    flex: 1,
+    height: 42,
     fontSize: Fonts.sizes.sm,
     fontFamily: Fonts.regular,
     color: Colors.textPrimary,
+    padding: 0,
+  },
+  searchClear: {
+    padding: 4,
+    marginLeft: 4,
+  },
+  searchClearText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontWeight: '700',
   },
 
   // Filters
@@ -314,7 +512,7 @@ const styles = StyleSheet.create({
     fontSize: Fonts.sizes.xs,
     fontFamily: Fonts.semiBold,
     color: Colors.textSecondary,
-    marginBottom: 4,
+    marginBottom: 6,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -322,21 +520,26 @@ const styles = StyleSheet.create({
   // Chips
   chipList: {
     paddingVertical: 2,
-    gap: 6,
+    gap: 8,
   },
   chip: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
     backgroundColor: Colors.white,
     borderWidth: 1,
     borderColor: Colors.border,
-    marginRight: 6,
+    marginRight: 8,
     minWidth: 44,
   },
   chipActive: {
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
+    elevation: 2,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
   chipText: {
     fontSize: Fonts.sizes.xs,
@@ -350,12 +553,30 @@ const styles = StyleSheet.create({
   // Results
   resultsRow: {
     paddingHorizontal: 16,
-    paddingVertical: 6,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  resultsPill: {
+    backgroundColor: Colors.surface,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   resultsText: {
     fontSize: Fonts.sizes.xs,
     fontFamily: Fonts.semiBold,
     color: Colors.textSecondary,
+  },
+  clearFilterButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  clearFilterText: {
+    fontSize: Fonts.sizes.xs,
+    fontFamily: Fonts.semiBold,
+    color: Colors.secondary,
   },
 
   // List
@@ -370,24 +591,32 @@ const styles = StyleSheet.create({
   // Employee Card
   empCard: {
     backgroundColor: Colors.white,
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: 14,
     marginBottom: 10,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 3,
+    overflow: 'hidden',
+    flexDirection: 'row',
+  },
+  empCardAccent: {
+    width: 4,
+    backgroundColor: Colors.secondary,
+  },
+  empCardBody: {
+    flex: 1,
+    padding: 14,
   },
   empTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   empAvatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: `${Colors.primary}12`,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -395,7 +624,6 @@ const styles = StyleSheet.create({
   empAvatarText: {
     fontSize: Fonts.sizes.md,
     fontFamily: Fonts.bold,
-    color: Colors.primary,
   },
   empInfo: {
     flex: 1,
@@ -406,22 +634,29 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     marginBottom: 2,
   },
+  empDesignationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   empDesignation: {
     fontSize: Fonts.sizes.xs,
     fontFamily: Fonts.regular,
     color: Colors.textSecondary,
   },
-  empDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: `${Colors.border}80`,
-    marginVertical: 12,
-  },
   empBottomRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: `${Colors.border}80`,
   },
   empMeta: {
     flex: 1,
+  },
+  empMetaDivider: {
+    width: 1,
+    backgroundColor: `${Colors.border}80`,
+    marginHorizontal: 12,
   },
   empMetaLabel: {
     fontSize: Fonts.sizes.xs,
@@ -433,6 +668,62 @@ const styles = StyleSheet.create({
     fontSize: Fonts.sizes.sm,
     fontFamily: Fonts.semiBold,
     color: Colors.textPrimary,
+  },
+
+  // Letter Section Header
+  letterHeader: {
+    paddingTop: 16,
+    paddingBottom: 6,
+  },
+  letterHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  letterHeaderText: {
+    fontSize: Fonts.sizes.lg,
+    fontFamily: Fonts.bold,
+    color: Colors.textPrimary,
+    marginRight: 8,
+  },
+  letterBadge: {
+    backgroundColor: Colors.primary + '12',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  letterBadgeText: {
+    fontSize: Fonts.sizes.xs,
+    fontFamily: Fonts.semiBold,
+    color: Colors.primary,
+  },
+  letterHeaderLine: {
+    height: 1,
+    backgroundColor: `${Colors.border}60`,
+    marginTop: 4,
+  },
+
+  // Alphabet Index Bar
+  alphabetBar: {
+    position: 'absolute',
+    right: 2,
+    top: 0,
+    bottom: 0,
+    width: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  alphabetItem: {
+    width: 20,
+    height: 17,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  alphabetText: {
+    fontSize: 9,
+    fontFamily: Fonts.bold,
+    color: Colors.primary,
   },
 });
 

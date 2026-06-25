@@ -1,4 +1,4 @@
-import React, {useRef, useState, useCallback, useMemo} from 'react';
+import React, {useRef, useState, useCallback, useMemo, MutableRefObject} from 'react';
 import {
   FlatList,
   ScrollView,
@@ -55,8 +55,9 @@ export function ScrollableList<T extends object>({
   scrollToTopThreshold = SCROLL_TOP_THRESHOLD,
   scrollToBottomThreshold = SCROLL_BOTTOM_THRESHOLD,
   scrollIndicatorType = ScrollIndicatorType.FLOATING,
+  flatListRef,
   ...flatListProps
-}: ScrollableListProps<T>) {
+}: ScrollableListProps<T> & { flatListRef?: MutableRefObject<FlatList<T> | null> }) {
   const listRef = useRef<FlatList<T>>(null);
 
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -143,7 +144,12 @@ export function ScrollableList<T extends object>({
   return (
     <View style={styles.container}>
       <FlatList
-        ref={listRef}
+        ref={(ref) => {
+          (listRef as MutableRefObject<FlatList<T> | null>).current = ref;
+          if (flatListRef) {
+            (flatListRef as MutableRefObject<FlatList<T> | null>).current = ref;
+          }
+        }}
         data={data}
         renderItem={renderItem}
         keyExtractor={keyExtractor}

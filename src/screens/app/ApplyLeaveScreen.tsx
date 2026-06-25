@@ -1,9 +1,10 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
+  Pressable,
   StyleSheet,
   ScrollView,
   KeyboardAvoidingView,
@@ -13,6 +14,8 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Colors } from '../../theme';
@@ -147,6 +150,34 @@ const generateDateRange = (fromStr: string, toStr: string): string[] => {
 };
 
 /**
+ * Checks whether a given date is the 3rd Saturday of its month.
+ */
+const isSunday = (date: Date): boolean => date.getDay() === 0;
+
+const isThirdSaturday = (date: Date): boolean => {
+  if (date.getDay() !== 6) { return false; }
+  const saturdayCount = Math.ceil(date.getDate() / 7);
+  return saturdayCount === 3;
+};
+
+/**
+ * Returns the default leave hours for a given date string.
+ *   3rd Saturday → 6
+ *   Weekday (Mon-Fri) → 8
+ *   Weekend (Sat not 3rd, Sun) → 0
+ */
+const getDefaultHours = (dateStr: string): string => {
+  const date = parseDateString(dateStr);
+  if (!date) { return '8'; }
+  const day = date.getDay();
+  if (day === 0 || day === 6) {
+    if (isThirdSaturday(date)) { return '6'; }
+    return '0';
+  }
+  return '8';
+};
+
+/**
  * Formats an ISO date string into YYYY-MM-DD.
  */
 const formatApiDate = (dateStr: string): string => {
@@ -198,6 +229,301 @@ const normalizeRecord = (raw: any): LeaveSummaryRecord => {
 
 /* ─── Screen ──────────────────────────────────────────────────────── */
 
+/* ─── Leave Card ──────────────────────────────────────────────────── */
+
+interface LeaveCardProps {
+  record: LeaveSummaryRecord;
+  onEdit: (record: LeaveSummaryRecord) => void;
+  onDelete: (record: LeaveSummaryRecord) => void;
+}
+
+const LeaveCard: React.FC<LeaveCardProps> = ({ record, onEdit, onDelete }) => (
+  <View style={styles.card}>
+    <View style={styles.cardTop}>
+      <View style={styles.cardHeader}>
+        <View
+          style={[styles.leaveTypeDot, { backgroundColor: Colors.primary }]}
+        />
+        <Text style={styles.cardTitle} numberOfLines={1}>
+          Leave Request
+        </Text>
+      </View>
+      {record.Status && (
+        <View
+          style={[
+            styles.statusBadge,
+            { backgroundColor: getStatusColor(record.Status) + '20' },
+          ]}
+        >
+          <Text
+            style={[
+              styles.statusText,
+              { color: getStatusColor(record.Status) },
+            ]}
+          >
+            {record.Status}
+          </Text>
+        </View>
+      )}
+    </View>
+
+    <View style={styles.cardRow}>
+      <Text style={styles.cardLabel}>From:</Text>
+      <Text style={styles.cardValue}>{formatApiDate(record.From)}</Text>
+    </View>
+    <View style={styles.cardRow}>
+      <Text style={styles.cardLabel}>To:</Text>
+      <Text style={styles.cardValue}>{formatApiDate(record.To)}</Text>
+    </View>
+
+    <View style={styles.cardRow}>
+      <Text style={styles.cardLabel}>Total Days:</Text>
+      <Text style={styles.cardValue}>{record.TotalDays}</Text>
+    </View>
+
+    {record.ApprovedBy && (
+      <View style={styles.cardRow}>
+        <Text style={styles.cardLabel}>Approved By:</Text>
+        <Text style={styles.cardValue}>{record.ApprovedBy}</Text>
+      </View>
+    )}
+
+    <Text style={styles.cardId} numberOfLines={1} ellipsizeMode="tail">
+      ID: {record.LeaveId}
+    </Text>
+
+    <View style={styles.cardActions}>
+      <TouchableOpacity
+        style={styles.editButton}
+        onPress={() => onEdit(record)}
+      >
+        <Text style={styles.editButtonText}>Edit</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.deleteButton}
+        onPress={() => onDelete(record)}
+      >
+        <Text style={styles.deleteButtonText}>Delete</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+);
+
+/* ─── ScrollView with auto load-more ──────────────────────────────── */
+
+const SCROLL_BUFFER = 150;
+
+interface ScrollViewWithAutoLoadProps {
+  leaves: LeaveSummaryRecord[];
+  visibleCount: number;
+  loadingMore: boolean;
+  isRefreshing: boolean;
+  onRefresh: () => void;
+  onLoadMore: () => void;
+  onEdit: (record: LeaveSummaryRecord) => void;
+  onDelete: (record: LeaveSummaryRecord) => void;
+}
+
+const ScrollViewWithAutoLoad: React.FC<ScrollViewWithAutoLoadProps> = ({
+  leaves,
+  visibleCount,
+  loadingMore,
+  isRefreshing,
+  onRefresh,
+  onLoadMore,
+  onEdit,
+  onDelete,
+}) => {
+  const hasMore = visibleCount < leaves.length;
+  const isLoadingMore = useRef(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const [scrollY, setScrollY] = useState(0);
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(
+    () => new Set(['Pending']),
+  );
+
+  const toggleSection = useCallback((key: string) => {
+    setExpandedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+      const currentScrollY = contentOffset.y;
+      setScrollY(currentScrollY);
+
+      if (isLoadingMore.current || !hasMore) { return; }
+      const distanceFromBottom =
+        contentSize.height - currentScrollY - layoutMeasurement.height;
+      if (distanceFromBottom < SCROLL_BUFFER) {
+        isLoadingMore.current = true;
+        onLoadMore();
+      }
+    },
+    [hasMore, onLoadMore],
+  );
+
+  const scrollToTop = useCallback(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  }, []);
+
+  const showScrollTop = scrollY > 400;
+
+  useEffect(() => {
+    if (!loadingMore) {
+      isLoadingMore.current = false;
+    }
+  }, [loadingMore]);
+
+  const paginatedLeaves = leaves.slice(0, visibleCount);
+
+  const grouped: Record<string, LeaveSummaryRecord[]> = {};
+  const order = ['Pending', 'Approved', 'Rejected'];
+  paginatedLeaves.forEach(r => {
+    const key = r.Status || 'Other';
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(r);
+  });
+
+  return (
+    <View style={styles.scrollContainer}>
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={styles.listContent}
+        onScroll={handleScroll}
+        scrollEventThrottle={100}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+          />
+        }
+      >
+        <Text style={styles.paginationInfo}>
+          Showing {Math.min(visibleCount, leaves.length)} of {leaves.length} records
+        </Text>
+        {order.map(sectionKey => {
+          const items = grouped[sectionKey];
+          if (!items || items.length === 0) { return null; }
+          const isExpanded = expandedSections.has(sectionKey);
+          return (
+            <View key={sectionKey} style={styles.section}>
+              <Pressable style={styles.sectionHeader} onPress={() => toggleSection(sectionKey)}>
+                <View style={styles.sectionHeaderLeft}>
+                  <View style={[styles.sectionIndicator, {backgroundColor: getStatusColor(sectionKey)}]} />
+                  <Text style={styles.sectionTitle}>{sectionKey} ({items.length})</Text>
+                </View>
+                <Text style={styles.sectionArrow}>{isExpanded ? '▲' : '▼'}</Text>
+              </Pressable>
+              {isExpanded && items.map((record, idx) => (
+                <LeaveCard key={`${record.LeaveId}-${idx}`} record={record} onEdit={onEdit} onDelete={onDelete} />
+              ))}
+            </View>
+          );
+        })}
+        {loadingMore && (
+          <View style={styles.loadingMoreContainer}>
+            <ActivityIndicator size="small" color={Colors.primary} />
+          </View>
+        )}
+      </ScrollView>
+
+      {showScrollTop && (
+        <TouchableOpacity
+          style={styles.scrollToTopButton}
+          onPress={scrollToTop}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.scrollToTopArrow}>▲</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+};
+
+/* ─── Hours Section (collapsible) ──────────────────────────────── */
+
+interface HoursSectionProps {
+  dateHoursMap: Record<string, string>;
+  leaveDates: string[];
+  setDateHoursMap: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  errors: Record<string, string>;
+}
+
+const HoursSection: React.FC<HoursSectionProps> = ({
+  dateHoursMap,
+  leaveDates,
+  setDateHoursMap,
+  errors,
+}) => {
+  const [expanded, setExpanded] = useState(false);
+
+  const totalHours = leaveDates.reduce(
+    (sum, d) => sum + (Number(dateHoursMap[d]) || 0),
+    0,
+  );
+
+  return (
+    <View style={styles.fieldGroup}>
+      <TouchableOpacity
+        style={styles.hoursSummary}
+        onPress={() => setExpanded(prev => !prev)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.hoursSummaryLeft}>
+          <Text style={styles.hoursSummaryLabel}>Leave Hours</Text>
+          <Text style={styles.hoursSummaryTotal}>
+            {totalHours} {totalHours === 1 ? 'hour' : 'hours'}
+          </Text>
+        </View>
+        <Text style={styles.hoursSummaryArrow}>
+          {expanded ? '▲' : '▼'}
+        </Text>
+      </TouchableOpacity>
+
+      {expanded && (
+        <View style={styles.hoursDetail}>
+          {leaveDates.map((dateStr) => (
+            <View key={dateStr} style={styles.hoursRow}>
+              <Text style={styles.hoursRowDate}>
+                {formatDisplayDate(dateStr)}
+              </Text>
+              <View style={styles.hoursRowInputGroup}>
+                <TextInput
+                  style={[
+                    styles.hoursRowInput,
+                    errors[`hours_${dateStr}`] && styles.inputError,
+                  ]}
+                  value={dateHoursMap[dateStr] ?? ''}
+                  onChangeText={(val) =>
+                    setDateHoursMap(prev => ({ ...prev, [dateStr]: val }))
+                  }
+                  keyboardType="numeric"
+                  placeholder="0"
+                  placeholderTextColor={Colors.textSecondary}
+                />
+                <Text style={styles.hoursRowUnit}>hrs</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {errors.leaveHours && (
+        <Text style={styles.errorText}>{errors.leaveHours}</Text>
+      )}
+    </View>
+  );
+};
+
 const ApplyLeaveScreen: React.FC = () => {
   const navigation = useNavigation();
 
@@ -213,10 +539,14 @@ const ApplyLeaveScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(10);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   /* ── Form state ────────────────────────────────────────────────── */
   const [leaveDates, setLeaveDates] = useState<string[]>([]);
-  const [leaveHours, setLeaveHours] = useState('8');
+  const [dateHoursMap, setDateHoursMap] = useState<Record<string, string>>({});
+  const [fromDate, setFromDate] = useState<string>('');
+  const [toDate, setToDate] = useState<string>('');
   const [reason, setReason] = useState('');
   const [appliedDate, setAppliedDate] = useState('');
   const [leaveFile, setLeaveFile] = useState('');
@@ -234,7 +564,7 @@ const ApplyLeaveScreen: React.FC = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [pickerDate, setPickerDate] = useState(new Date());
   const [pickerField, setPickerField] = useState<
-    'addDate' | 'appliedDate' | null
+    'addDate' | 'fromDate' | 'toDate' | 'appliedDate' | null
   >(null);
 
   /* ── Touched / errors ──────────────────────────────────────────── */
@@ -277,9 +607,19 @@ const ApplyLeaveScreen: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const handleLoadMore = useCallback(() => {
+    if (loadingMore || visibleCount >= leaves.length) { return; }
+    setLoadingMore(true);
+    setTimeout(() => {
+      setVisibleCount((prev) => prev + 10);
+      setLoadingMore(false);
+    }, 300);
+  }, [loadingMore, visibleCount, leaves.length]);
+
   const fetchLeaves = useCallback(async () => {
     setIsLoading(true);
     setListError(null);
+    setVisibleCount(10);
     try {
       const response = await LeaveService.getEmployeeLeaveSummary();
       // eslint-disable-next-line no-console
@@ -320,6 +660,7 @@ const ApplyLeaveScreen: React.FC = () => {
 
   const handleRefresh = () => {
     setIsRefreshing(true);
+    setVisibleCount(10);
     fetchLeaves();
   };
 
@@ -329,10 +670,14 @@ const ApplyLeaveScreen: React.FC = () => {
     if (leaveDates.length === 0) {
       newErrors.leLeaveDate = 'At least one leave date is required';
     }
-    if (!leaveHours.trim()) {
-      newErrors.leaveHours = 'Leave hours are required';
-    } else if (Number(leaveHours) <= 0 || Number(leaveHours) > 24) {
-      newErrors.leaveHours = 'Hours must be between 1 and 24';
+    // Validate each date has valid hours
+    for (const dateStr of leaveDates) {
+      const hrs = dateHoursMap[dateStr];
+      if (!hrs || !hrs.trim()) {
+        newErrors[`hours_${dateStr}`] = 'Hours are required';
+      } else if (Number(hrs) < 0 || Number(hrs) > 24) {
+        newErrors[`hours_${dateStr}`] = 'Hours must be between 0 and 24';
+      }
     }
     if (!appliedDate.trim()) {
       newErrors.appliedDate = 'Applied date is required';
@@ -346,12 +691,14 @@ const ApplyLeaveScreen: React.FC = () => {
       newErrors.leaveType = 'Please select a leave type';
     }
     return newErrors;
-  }, [leaveDates, leaveHours, appliedDate, reason, selectedLeaveType]);
+  }, [leaveDates, dateHoursMap, appliedDate, reason, selectedLeaveType]);
 
   /* ── Reset form ──────────────────────────────────────────────────── */
   const resetForm = () => {
     setLeaveDates([]);
-    setLeaveHours('8');
+    setDateHoursMap({});
+    setFromDate('');
+    setToDate('');
     setReason('');
     setAppliedDate(formatISODate(new Date()));
     setLeaveFile('');
@@ -389,7 +736,13 @@ const ApplyLeaveScreen: React.FC = () => {
 
       const dates = generateDateRange(src.From, src.To);
       setLeaveDates(dates.length > 0 ? dates : src.LeaveDate ? [src.LeaveDate] : []);
-      setLeaveHours(src.LeaveHours || '8');
+      setFromDate(src.From || '');
+      setToDate(src.To || '');
+      const defaultHours = src.LeaveHours || '8';
+      const map: Record<string, string> = {};
+      const dateList = dates.length > 0 ? dates : src.LeaveDate ? [src.LeaveDate] : [];
+      dateList.forEach((d) => { map[d] = defaultHours; });
+      setDateHoursMap(map);
       setReason(src.Reason || '');
       setAppliedDate(src.AppliedDate || formatISODate(new Date()));
       setLeaveFile(src.LeaveFile || '');
@@ -400,7 +753,13 @@ const ApplyLeaveScreen: React.FC = () => {
       // Fallback to summary record on fetch failure
       const dates = generateDateRange(record.From, record.To);
       setLeaveDates(dates.length > 0 ? dates : record.LeaveDate ? [record.LeaveDate] : []);
-      setLeaveHours(record.LeaveHours || '8');
+      setFromDate(record.From || '');
+      setToDate(record.To || '');
+      const defaultHours = record.LeaveHours || '8';
+      const map: Record<string, string> = {};
+      const dateList = dates.length > 0 ? dates : record.LeaveDate ? [record.LeaveDate] : [];
+      dateList.forEach((d) => { map[d] = defaultHours; });
+      setDateHoursMap(map);
       setReason(record.Reason || '');
       setAppliedDate(record.AppliedDate || formatISODate(new Date()));
       setLeaveFile(record.LeaveFile || '');
@@ -420,7 +779,6 @@ const ApplyLeaveScreen: React.FC = () => {
     const validationErrors = validate();
     setTouched({
       leaveDates: true,
-      leaveHours: true,
       appliedDate: true,
       reason: true,
       leaveType: true,
@@ -441,7 +799,7 @@ const ApplyLeaveScreen: React.FC = () => {
         const updateDetail: UpdateLeaveDetail = {
           LeaveId: editingRecord.LeaveId,
           LeaveDate: convertToMDYYYY(leaveDates[0] || formatISODate(new Date())),
-          LeaveHours: leaveHours,
+          LeaveHours: dateHoursMap[leaveDates[0]] || '0',
           AppliedDate: appliedDate,
           Reason: reason.trim(),
           LeaveFile: leaveFile || '',
@@ -469,7 +827,7 @@ const ApplyLeaveScreen: React.FC = () => {
         /* ── CREATE ───────────────────────────────────────────────── */
         const leaveDetails: LeaveDetail[] = leaveDates.map(date => ({
           LeaveDate: convertToMDYYYY(date),
-          LeaveHours: leaveHours,
+          LeaveHours: dateHoursMap[date] || '0',
           AppliedDate: appliedDate,
           Reason: reason.trim(),
           LeaveFile: leaveFile || '',
@@ -508,7 +866,7 @@ const ApplyLeaveScreen: React.FC = () => {
     }
   }, [
     leaveDates,
-    leaveHours,
+    dateHoursMap,
     appliedDate,
     reason,
     leaveFile,
@@ -558,9 +916,6 @@ const ApplyLeaveScreen: React.FC = () => {
   /* ── Input helpers ──────────────────────────────────────────────── */
   const handleChangeText = (field: string, value: string) => {
     switch (field) {
-      case 'leaveHours':
-        setLeaveHours(value);
-        break;
       case 'appliedDate':
         setAppliedDate(value);
         break;
@@ -589,11 +944,27 @@ const ApplyLeaveScreen: React.FC = () => {
   };
 
   /* ── Date picker helpers ───────────────────────────────────── */
-  const openDatePicker = (field: 'addDate' | 'appliedDate') => {
+  const openDatePicker = (field: 'addDate' | 'fromDate' | 'toDate' | 'appliedDate') => {
     let date = new Date();
     if (field === 'appliedDate' && appliedDate) {
       const parsed = parseDateString(appliedDate);
       if (parsed) date = parsed;
+    }
+    if (field === 'fromDate' && fromDate) {
+      const parsed = parseDateString(fromDate);
+      if (parsed) date = parsed;
+    }
+    if (field === 'toDate') {
+      if (toDate) {
+        const parsed = parseDateString(toDate);
+        if (parsed) date = parsed;
+      } else if (fromDate) {
+        const parsed = parseDateString(fromDate);
+        if (parsed) {
+          date = new Date(parsed);
+          date.setDate(date.getDate() + 1);
+        }
+      }
     }
     setPickerDate(date);
     setPickerField(field);
@@ -608,10 +979,49 @@ const ApplyLeaveScreen: React.FC = () => {
       setPickerDate(selectedDate);
       const formatted = formatISODate(selectedDate);
       if (pickerField === 'addDate') {
-        setLeaveDates(prev => {
-          if (prev.includes(formatted)) return prev;
-          return [...prev, formatted];
-        });
+        // Skip Sundays
+        if (!isSunday(selectedDate)) {
+          setLeaveDates(prev => {
+            if (prev.includes(formatted)) return prev;
+            return [...prev, formatted];
+          });
+          setDateHoursMap(prev => {
+            const hrs = getDefaultHours(formatted);
+            if (prev[formatted] !== undefined) { return prev; }
+            return { ...prev, [formatted]: hrs };
+          });
+          setTouched(prev => ({ ...prev, leaveDates: true }));
+          setErrors(prev => {
+            const newErrors = { ...prev };
+            delete newErrors.leaveDates;
+            return newErrors;
+          });
+        }
+      }
+      if (pickerField === 'fromDate') {
+        setFromDate(formatted);
+      }
+      if (pickerField === 'toDate') {
+        setToDate(formatted);
+      }
+      // When both from and to are set, auto-generate the range
+      if (pickerField === 'fromDate' || pickerField === 'toDate') {
+        const newFrom = pickerField === 'fromDate' ? formatted : fromDate;
+        const newTo = pickerField === 'toDate' ? formatted : toDate;
+        if (newFrom && newTo) {
+          const range = generateDateRange(newFrom, newTo).filter(
+            (d) => !isSunday(parseDateString(d)!),
+          );
+          // Replace all dates with the new range (no merging)
+          setLeaveDates(range);
+          setDateHoursMap(prev => {
+            const next: Record<string, string> = {};
+            range.forEach((d) => {
+              next[d] = prev[d] ?? getDefaultHours(d);
+            });
+            return next;
+          });
+        }
         setTouched(prev => ({ ...prev, leaveDates: true }));
         setErrors(prev => {
           const newErrors = { ...prev };
@@ -634,87 +1044,21 @@ const ApplyLeaveScreen: React.FC = () => {
     }
   };
 
+  const removeDate = useCallback((dateStr: string) => {
+    setLeaveDates(prev => prev.filter(d => d !== dateStr));
+    setDateHoursMap(prev => {
+      const next = { ...prev };
+      delete next[dateStr];
+      return next;
+    });
+  }, []);
+
   const closePicker = () => {
     setShowDatePicker(false);
     setPickerField(null);
   };
 
-  /* ── Leave Card ──────────────────────────────────────────────────── */
-  const LeaveCard: React.FC<{ record: LeaveSummaryRecord }> = ({ record }) => (
-    <View style={styles.card}>
-      <View style={styles.cardTop}>
-        <View style={styles.cardHeader}>
-          <View
-            style={[styles.leaveTypeDot, { backgroundColor: Colors.primary }]}
-          />
-          <Text style={styles.cardTitle} numberOfLines={1}>
-            Leave Request
-          </Text>
-        </View>
-        {record.Status && (
-          <View
-            style={[
-              styles.statusBadge,
-              { backgroundColor: getStatusColor(record.Status) + '20' },
-            ]}
-          >
-            <Text
-              style={[
-                styles.statusText,
-                { color: getStatusColor(record.Status) },
-              ]}
-            >
-              {record.Status}
-            </Text>
-          </View>
-        )}
-      </View>
-
-      {/* From / To dates */}
-      <View style={styles.cardRow}>
-        <Text style={styles.cardLabel}>From:</Text>
-        <Text style={styles.cardValue}>{formatApiDate(record.From)}</Text>
-      </View>
-      <View style={styles.cardRow}>
-        <Text style={styles.cardLabel}>To:</Text>
-        <Text style={styles.cardValue}>{formatApiDate(record.To)}</Text>
-      </View>
-
-      {/* Total days */}
-      <View style={styles.cardRow}>
-        <Text style={styles.cardLabel}>Total Days:</Text>
-        <Text style={styles.cardValue}>{record.TotalDays}</Text>
-      </View>
-
-      {/* Approved By */}
-      {record.ApprovedBy && (
-        <View style={styles.cardRow}>
-          <Text style={styles.cardLabel}>Approved By:</Text>
-          <Text style={styles.cardValue}>{record.ApprovedBy}</Text>
-        </View>
-      )}
-
-      {/* Leave ID (for debugging / reference) */}
-      <Text style={styles.cardId} numberOfLines={1} ellipsizeMode="tail">
-        ID: {record.LeaveId}
-      </Text>
-
-      <View style={styles.cardActions}>
-        <TouchableOpacity
-          style={styles.editButton}
-          onPress={() => openEditForm(record)}
-        >
-          <Text style={styles.editButtonText}>Edit</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={() => handleDelete(record)}
-        >
-          <Text style={styles.deleteButtonText}>Delete</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+  /* ── Leave Card (inline reference removed - now standalone) ──────── */
 
   /* ── JSX ──────────────────────────────────────────────────────────── */
   return (
@@ -766,40 +1110,16 @@ const ApplyLeaveScreen: React.FC = () => {
               </Text>
             </ScrollView>
           ) : (
-            <ScrollView
-              contentContainerStyle={styles.listContent}
-              refreshControl={
-                <RefreshControl
-                  refreshing={isRefreshing}
-                  onRefresh={handleRefresh}
-                />
-              }
-            >
-              {(() => {
-                const grouped: Record<string, LeaveSummaryRecord[]> = {};
-                const order = ['Pending', 'Approved', 'Rejected'];
-                leaves.forEach(r => {
-                  const key = r.Status || 'Other';
-                  if (!grouped[key]) grouped[key] = [];
-                  grouped[key].push(r);
-                });
-                return order.map(sectionKey => {
-                  const items = grouped[sectionKey];
-                  if (!items || items.length === 0) return null;
-                  return (
-                    <View key={sectionKey} style={styles.section}>
-                      <View style={styles.sectionHeader}>
-                        <View style={[styles.sectionIndicator, {backgroundColor: getStatusColor(sectionKey)}]} />
-                        <Text style={styles.sectionTitle}>{sectionKey} ({items.length})</Text>
-                      </View>
-                      {items.map((record, idx) => (
-                        <LeaveCard key={`${record.LeaveId}-${idx}`} record={record} />
-                      ))}
-                    </View>
-                  );
-                });
-              })()}
-            </ScrollView>
+            <ScrollViewWithAutoLoad
+              leaves={leaves}
+              visibleCount={visibleCount}
+              loadingMore={loadingMore}
+              isRefreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              onLoadMore={handleLoadMore}
+              onEdit={openEditForm}
+              onDelete={handleDelete}
+            />
           )}
         </>
       ) : (
@@ -891,65 +1211,83 @@ const ApplyLeaveScreen: React.FC = () => {
                 {/* ── Leave Dates ────────────────────────────────────── */}
                 <View style={styles.fieldGroup}>
                   <Text style={styles.label}>Leave Dates</Text>
-                  <View style={styles.dateChipsContainer}>
-                    {leaveDates.map((dateStr, idx) => (
-                      <View key={idx} style={styles.dateChip}>
-                        <Text style={styles.dateChipText}>
-                          {formatDisplayDate(dateStr)}
-                        </Text>
-                        <TouchableOpacity
-                          onPress={() =>
-                            setLeaveDates(prev =>
-                              prev.filter((_, i) => i !== idx),
-                            )
-                          }
-                          hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-                        >
-                          <Text style={styles.dateChipRemove}>x</Text>
-                        </TouchableOpacity>
-                      </View>
-                    ))}
+
+                  {/* From / To range */}
+                  <View style={styles.rangeRow}>
                     <TouchableOpacity
                       style={[
-                        styles.input,
-                        styles.dateInput,
-                        touched.leaveDates &&
-                          errors.leaveDates &&
-                          styles.inputError,
+                        styles.rangeField,
+                        errors.fromDate && styles.inputError,
                       ]}
-                      onPress={() => openDatePicker('addDate')}
+                      onPress={() => openDatePicker('fromDate')}
                       activeOpacity={0.7}
                     >
-                      <Text style={styles.dateInputPlaceholder}>
-                        + Add date
+                      <Text style={styles.rangeLabelText}>From</Text>
+                      <Text style={fromDate ? styles.rangeValueText : styles.rangePlaceholder}>
+                        {fromDate ? formatDisplayDate(fromDate) : 'Select'}
+                      </Text>
+                    </TouchableOpacity>
+                    <Text style={styles.rangeSeparator}>→</Text>
+                    <TouchableOpacity
+                      style={[
+                        styles.rangeField,
+                        errors.toDate && styles.inputError,
+                      ]}
+                      onPress={() => openDatePicker('toDate')}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.rangeLabelText}>To</Text>
+                      <Text style={toDate ? styles.rangeValueText : styles.rangePlaceholder}>
+                        {toDate ? formatDisplayDate(toDate) : 'Select'}
                       </Text>
                     </TouchableOpacity>
                   </View>
+
+                  {/* Date chips (dates only, no hours) */}
+                  {leaveDates.length > 0 && (
+                    <>
+                      <View style={styles.dateChipsContainer}>
+                        {leaveDates.map((dateStr) => (
+                          <View key={dateStr} style={styles.dateChip}>
+                            <Text style={styles.dateChipText}>
+                              {formatDisplayDate(dateStr)}
+                            </Text>
+                            <TouchableOpacity
+                              onPress={() => removeDate(dateStr)}
+                              hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+                            >
+                              <Text style={styles.dateChipRemove}>x</Text>
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+                      </View>
+
+                      {/* Add individual date */}
+                      <TouchableOpacity
+                        style={styles.addDateButton}
+                        onPress={() => openDatePicker('addDate')}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.dateInputPlaceholder}>
+                          + Add another date
+                        </Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
                   {touched.leaveDates && errors.leaveDates && (
                     <Text style={styles.errorText}>{errors.leaveDates}</Text>
                   )}
                 </View>
 
-                {/* ── Leave Hours ────────────────────────────────────── */}
-                <View style={styles.fieldGroup}>
-                  <Text style={styles.label}>Leave Hours</Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      touched.leaveHours &&
-                        errors.leaveHours &&
-                        styles.inputError,
-                    ]}
-                    placeholder="e.g., 8"
-                    placeholderTextColor={Colors.textSecondary}
-                    value={leaveHours}
-                    onChangeText={text => handleChangeText('leaveHours', text)}
-                    keyboardType="numeric"
+                {/* ── Hours (collapsible) ─────────────────────────────── */}
+                {leaveDates.length > 0 && (
+                  <HoursSection
+                    dateHoursMap={dateHoursMap}
+                    leaveDates={leaveDates}
+                    setDateHoursMap={setDateHoursMap}
+                    errors={errors}
                   />
-                  {touched.leaveHours && errors.leaveHours && (
-                    <Text style={styles.errorText}>{errors.leaveHours}</Text>
-                  )}
-                </View>
+                )}
 
                 {/* ── Applied Date ─────────────────────────────────────── */}
                 <View style={styles.fieldGroup}>
@@ -1054,7 +1392,11 @@ const ApplyLeaveScreen: React.FC = () => {
                       mode="date"
                       display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                       onValueChange={(e, date) => onDateChange(e, date)}
-                      minimumDate={new Date(2000, 0, 1)}
+                      minimumDate={
+                        pickerField === 'toDate' && fromDate
+                          ? parseDateString(fromDate) ?? new Date()
+                          : new Date()
+                      }
                       maximumDate={new Date(2099, 11, 31)}
                     />
                     {Platform.OS === 'ios' && (
@@ -1173,9 +1515,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 24,
   },
+  scrollContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  scrollToTopButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  scrollToTopArrow: {
+    color: Colors.white,
+    fontSize: 18,
+    fontWeight: '700',
+  },
   listContent: {
     padding: 16,
     paddingBottom: 32,
+  },
+  paginationInfo: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginBottom: 12,
+    fontWeight: '600',
+  },
+  loadingMoreContainer: {
+    paddingVertical: 20,
+    alignItems: 'center',
   },
   emptyText: {
     fontSize: 16,
@@ -1217,8 +1594,20 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 10,
     paddingHorizontal: 2,
+    paddingVertical: 4,
+  },
+  sectionHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  sectionArrow: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginLeft: 8,
   },
   sectionIndicator: {
     width: 10,
@@ -1514,7 +1903,47 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  /* ── Date chips ──────────────────────────────────────── */
+  /* ── Date range row ──────────────────────────────────── */
+  rangeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  rangeField: {
+    flex: 1,
+    height: 44,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    backgroundColor: Colors.white,
+    justifyContent: 'center',
+  },
+  rangeLabelText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  rangeValueText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+  },
+  rangePlaceholder: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  rangeSeparator: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+    marginBottom: 4,
+  },
+
+  /* ── Date chips (dates only) ──────────────────────────── */
   dateChipsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1524,14 +1953,14 @@ const styles = StyleSheet.create({
   dateChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.primary + '15',
-    borderRadius: 20,
+    backgroundColor: Colors.primary + '12',
+    borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 6,
     gap: 6,
   },
   dateChipText: {
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.primary,
     fontWeight: '600',
   },
@@ -1540,6 +1969,96 @@ const styles = StyleSheet.create({
     color: Colors.danger,
     fontWeight: '700',
   },
+  addDateButton: {
+    height: 36,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    borderRadius: 18,
+    borderStyle: 'dashed',
+    paddingHorizontal: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginBottom: 6,
+  },
+  /* ── Hours section ────────────────────────────────────── */
+  hoursSummary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  hoursSummaryLeft: {
+    gap: 2,
+  },
+  hoursSummaryLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  hoursSummaryTotal: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: Colors.primary,
+  },
+  hoursSummaryArrow: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  hoursDetail: {
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderTopWidth: 0,
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  hoursRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  hoursRowDate: {
+    fontSize: 14,
+    color: Colors.textPrimary,
+    fontWeight: '500',
+    flex: 1,
+  },
+  hoursRowInputGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  hoursRowInput: {
+    height: 36,
+    width: 56,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+    borderRadius: 8,
+    paddingTop: 8,
+    paddingHorizontal: 6,
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.dark,
+    textAlign: 'center',
+    backgroundColor: Colors.white,
+  },
+  hoursRowUnit: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    fontWeight: '600',
+  },
+
   /* ── Date picker styles ─────────────────────────────────── */
   dateInput: {
     justifyContent: 'center',
@@ -1554,7 +2073,7 @@ const styles = StyleSheet.create({
   },
   pickerContainer: {
     backgroundColor: Colors.white,
-    borderRadius: 10,
+    
     borderWidth: 1,
     borderColor: Colors.border,
     paddingVertical: 12,
