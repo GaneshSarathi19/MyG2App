@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import AppScreen from '../../components/layout/AppScreen';
 import AppHeader from '../../components/common/AppHeader';
+import AvatarBadge from '../../components/common/AvatarBadge';
 import { useAppSelector } from '../../redux/hooks';
 import {getProfileImageUri} from '../../utils/profileImage';
 import { Colors, Fonts } from '../../theme';
@@ -35,16 +36,14 @@ const ProfileHeader: React.FC<{
   fullName: string;
   designation: string;
   department: string;
-  imageUrl?: string;
-}> = ({ initials, fullName, designation, department }) => (
+  imageUrl?: string | null;
+}> = ({ initials, fullName, designation, department, imageUrl }) => (
   <View style={styles.heroSection}>
     <View style={styles.heroBg} />
     <View style={styles.heroContent}>
       <View style={styles.avatarOuterRing}>
         <View style={styles.avatarInnerRing}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initials || '?'}</Text>
-          </View>
+          <AvatarBadge initials={initials} size={70} imageUrl={imageUrl} />
         </View>
       </View>
       <Text style={styles.heroName}>{fullName}</Text>
@@ -178,11 +177,15 @@ const ProfileScreen: React.FC = () => {
           <ProfileInfoRow label="Corporate Email" value={user.CorporateEmailID} />
         </InfoCard>
 
-        {/* ── Mentor ───────────────────────────────────────────────── */}
+        {/* ── Mentor / Backup Lead ──────────────────────────────────── */}
         <InfoCard icon="&#128170;" title="Mentor / Backup Lead">
           <View style={styles.mentorRow}>
-            <View style={styles.mentorAvatar}>
-              <Text style={styles.mentorAvatarText}>{mentorInitials || '?'}</Text>
+            <View style={styles.mentorAvatarWrap}>
+              <AvatarBadge
+                initials={mentorInitials || '?'}
+                size={48}
+                imageUrl={getProfileImageUri(user.MentorProfilePicture)}
+              />
             </View>
             <View style={styles.mentorInfo}>
               <Text style={styles.mentorName}>{mentorName || '—'}</Text>
@@ -264,19 +267,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.25)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  avatar: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: Colors.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: {
-    fontSize: 28,
-    fontFamily: Fonts.bold,
-    color: Colors.primary,
   },
   heroName: {
     fontSize: 22,
@@ -421,19 +411,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 4,
   },
-  mentorAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: Colors.secondary + '20',
-    justifyContent: 'center',
-    alignItems: 'center',
+  mentorAvatarWrap: {
     marginRight: 14,
-  },
-  mentorAvatarText: {
-    fontSize: Fonts.sizes.md,
-    fontFamily: Fonts.bold,
-    color: Colors.secondary,
   },
   mentorInfo: {
     flex: 1,

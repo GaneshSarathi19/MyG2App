@@ -14,6 +14,7 @@ const Colors = {
 dark: '#333333',
 inputBorder: '#CED4DA',
   white: '#FFFFFF',
+
 };
 
 export default Colors;

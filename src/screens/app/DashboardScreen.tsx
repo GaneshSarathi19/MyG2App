@@ -1,5 +1,4 @@
-import React from 'react';
-import { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -16,7 +15,6 @@ import AppScreen from '../../components/layout/AppScreen';
 import AvatarBadge from '../../components/common/AvatarBadge';
 import {getProfileImageUri} from '../../utils/profileImage';
 import { useNavigation } from '@react-navigation/native';
-import type {Organisation} from '../../redux/slices/organisationSlice';
 
 const G2_LOGO = require('../../resources/g2logo-small.png') as number;
 const CG_VAK_LOGO = require('../../resources/cgvaklogo-small.png') as number;
@@ -61,7 +59,7 @@ const buildStats = (department: string | undefined) => [
 
 
 const CardHero: React.FC<{ abbr: string }> = ({ abbr }) => (
-  <View style={[styles.cardHero, { backgroundColor: Colors.secondary }]}>
+  <View style={styles.cardHero}>
     <Text style={styles.cardHeroAbbr}>{abbr}</Text>
   </View>
 );
@@ -109,11 +107,19 @@ const DashboardScreen = () => {
    const [isCompactHeader, setIsCompactHeader] =
     useState(false);
   const user = useAppSelector(state => state.auth.user);
-  const selectedOrganisation = useAppSelector(
+  const orgFromStore = useAppSelector(
     state => state.organisation.selectedOrganisation,
   );
   const {toggle} = useDrawer();
      const navigation = useNavigation<any>();
+
+  const selectedOrganisation = useMemo(() => {
+    if (orgFromStore) return orgFromStore;
+    const email = user?.CorporateEmailID?.toLowerCase() || '';
+    if (email.includes('g2') && !email.includes('cgvak')) return 'G2';
+    if (email.includes('cgvak')) return 'CG-Vak';
+    return null;
+  }, [orgFromStore, user]);
 
   const initials = `${user?.FirstName?.charAt(0) || ''}${user?.LastName?.charAt(0) || ''}`;
 const [showHolidayBanner,
@@ -391,8 +397,10 @@ headerProfileText: {
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   card: {
     width: COL_WIDTH,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.primary,
     borderRadius: 16,
+    borderWidth: 2,
+    borderColor: Colors.secondary,
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -405,6 +413,7 @@ headerProfileText: {
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
+    backgroundColor: Colors.primary,
   },
   cardHeroAbbr: {
     fontSize: 22,
@@ -417,29 +426,25 @@ headerProfileText: {
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
-  cardTitle: { fontSize: 13, fontWeight: '700', color: Colors.textPrimary, marginBottom: 2 },
-  cardSub: { fontSize: 11, color: Colors.textSecondary },
+  cardTitle: { fontSize: 13, fontWeight: '700', color: Colors.white, marginBottom: 2 },
+  cardSub: { fontSize: 11, color: 'rgba(255,255,255,0.65)' },
 
   // Badge
   badgeWrap: {
     position: 'absolute',
     top: 6,
     right: 6,
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: Colors.white,
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: Colors.secondary,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 5,
+    paddingHorizontal: 6,
     zIndex: 10,
     elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
   },
-  badgeText: { color: Colors.danger, fontSize: 11, fontWeight: '800' },
+  badgeText: { color: Colors.white, fontSize: 11, fontWeight: '800' },
 
   // Announcements
   annCard: {
