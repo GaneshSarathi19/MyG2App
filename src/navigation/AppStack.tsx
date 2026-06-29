@@ -7,6 +7,8 @@ import ProfileScreen from '../screens/app/ProfileScreen';
 import EmployeesScreen from '../screens/app/EmployeesScreen';
 import ApplyLeaveScreen from '../screens/app/ApplyLeaveScreen';
 import SettingsScreen from '../screens/app/SettingsScreen';
+import NotificationsScreen from '../screens/app/NotificationsScreen';
+import SnackBarWalletScreen from '../screens/app/SnackBarWalletScreen';
 const Stack = createNativeStackNavigator();
 
 const AppStack = () => {
@@ -35,6 +37,14 @@ const AppStack = () => {
       <Stack.Screen
         name="Settings"
         component={SettingsScreen}
+      />
+      <Stack.Screen
+        name="Notifications"
+        component={NotificationsScreen}
+      />
+      <Stack.Screen
+        name="SnackBarWallet"
+        component={SnackBarWalletScreen}
       />
     </Stack.Navigator>
   );
