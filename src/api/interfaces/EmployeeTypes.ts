@@ -12,6 +12,9 @@ export interface EmployeeRecord {
   EmailID: string;
   MentorID: string;
   Mentor: string;
+  EmployeeContact: string | null;
+  MentorContact: string | null;
+  EmployeeStatus: boolean;
 }
 
 export interface EmployeeMasterListResponse {
@@ -19,3 +22,5 @@ export interface EmployeeMasterListResponse {
   Message: string;
   Data: EmployeeRecord[];
 }
+
+

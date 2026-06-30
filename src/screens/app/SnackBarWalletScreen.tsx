@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Colors, Fonts } from '../../theme';
 import AppScreen from '../../components/layout/AppScreen';
@@ -17,11 +18,7 @@ import {
   SnackBarSummary,
   MonthlySpending,
   PurchaseItem,
-  SpendingAnalytics,
-  EmployeeInsight,
-  FrequentItem,
   TodayMenuItem,
-  PendingTransaction,
   SnackBarNotification,
 } from '../../api/interfaces/SnackBarTypes';
 
@@ -40,8 +37,6 @@ const formatDate = (dateStr: string): string => {
   const d = new Date(dateStr);
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 };
-
-/* ─── Section Loading / Error / Empty wrappers ─────────────────────── */
 
 const SectionLoader: React.FC = () => (
   <View style={styles.placeholderRow}>
@@ -65,131 +60,81 @@ const SectionEmpty: React.FC<{ message: string }> = ({ message }) => (
   </View>
 );
 
-/* ─── Summary Card ──────────────────────────────────────────────────── */
+/* ─── Stat Card ──────────────────────────────────────────────────────── */
 
-const SummaryCard: React.FC<{ summary: SnackBarSummary }> = ({ summary }) => (
-  <View style={styles.summaryContainer}>
-    <View style={styles.summaryMain}>
-      <Text style={styles.summaryLabel}>Total Spent</Text>
-      <Text style={styles.summaryAmount}>
-        {formatCurrency(summary.totalSpent)}
-      </Text>
-      <Text style={styles.summarySub}>
-        This month: {formatCurrency(summary.currentMonthSpent)}
-      </Text>
-    </View>
-    <View style={styles.summaryDivider} />
-    <View style={styles.summaryStats}>
-      <View style={styles.summaryStat}>
-        <Text style={[styles.summaryStatVal, styles.summaryStatGreen]}>
-          {formatCurrency(summary.monthlyAverage)}
-        </Text>
-        <Text style={styles.summaryStatLabel}>Monthly Avg</Text>
-      </View>
-      <View style={styles.summaryStat}>
-        <Text style={[styles.summaryStatVal, { color: Colors.danger }]}>
-          {formatCurrency(summary.salaryDeduction)}
-        </Text>
-        <Text style={styles.summaryStatLabel}>Salary Deduction</Text>
-      </View>
-    </View>
-  </View>
-);
-
-/* ─── Info Pill ──────────────────────────────────────────────────────── */
-
-const InfoPill: React.FC<{ label: string; value: string; color?: string }> = ({
+const StatCard: React.FC<{ label: string; value: string; accent?: boolean }> = ({
   label,
   value,
-  color,
+  accent,
 }) => (
-  <View style={styles.infoPill}>
-    <Text style={styles.infoPillLabel}>{label}</Text>
-    <Text style={[styles.infoPillValue, color ? { color } : null]}>{value}</Text>
+  <View style={[styles.statCard, accent && styles.statCardAccent]}>
+    <Text style={[styles.statValue, accent && styles.statValueLight]}>{value}</Text>
+    <Text style={[styles.statLabel, accent && styles.statLabelLight]}>{label}</Text>
   </View>
 );
 
-/* ─── Purchase Row ──────────────────────────────────────────────────── */
+/* ─── Purchase Row ───────────────────────────────────────────────────── */
 
-const statusColors: Record<string, string> = {
-  completed: '#22C55E',
-  pending: '#F59E0B',
-  refunded: '#EF4444',
-  in_progress: '#3B82F6',
+const statusConfig: Record<string, { color: string; label: string }> = {
+  completed: { color: '#22C55E', label: 'Completed' },
+  pending: { color: '#F59E0B', label: 'Pending' },
+  refunded: { color: '#EF4444', label: 'Refunded' },
+  in_progress: { color: '#3B82F6', label: 'In Progress' },
 };
 
-const PurchaseRow: React.FC<{ item: PurchaseItem }> = ({ item }) => (
-  <View style={styles.purchaseRow}>
-    <View style={styles.purchaseLeft}>
-      <View style={[styles.purchaseIndicator, { backgroundColor: statusColors[item.status] }]} />
-      <View style={styles.purchaseInfo}>
-        <Text style={styles.purchaseName}>{item.itemName}</Text>
-        <Text style={styles.purchaseMeta}>
-          {item.quantity > 1 ? `${item.quantity}x ` : ''}{item.category} &middot; {formatDate(item.date)}
-        </Text>
+const PurchaseRow: React.FC<{ item: PurchaseItem }> = ({ item }) => {
+  const cfg = statusConfig[item.status] || statusConfig.completed;
+  return (
+    <View style={styles.purchaseRow}>
+      <View style={styles.purchaseLeft}>
+        <View style={[styles.purchaseDot, { backgroundColor: cfg.color }]} />
+        <View style={styles.purchaseInfo}>
+          <Text style={styles.purchaseName}>{item.itemName}</Text>
+          <Text style={styles.purchaseMeta}>
+            {item.quantity > 1 ? `${item.quantity}x ` : ''}{item.category}
+            {' \u00B7 '}
+            {formatDate(item.date)}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.purchaseRight}>
+        <Text style={styles.purchaseAmount}>{formatCurrency(item.amount)}</Text>
+        <View style={[styles.purchaseBadge, { backgroundColor: `${cfg.color}18` }]}>
+          <Text style={[styles.purchaseBadgeText, { color: cfg.color }]}>{cfg.label}</Text>
+        </View>
       </View>
     </View>
-    <Text style={styles.purchaseAmount}>{formatCurrency(item.amount)}</Text>
-  </View>
-);
-
-/* ─── Category Bar ────────────────────────────────────────────────────── */
-
-const CategoryBar: React.FC<{
-  category: string;
-  amount: number;
-  percentage: number;
-  color: string;
-}> = ({ category, amount, percentage, color }) => (
-  <View style={styles.catRow}>
-    <View style={styles.catHeader}>
-      <Text style={styles.catName}>{category}</Text>
-      <Text style={styles.catAmount}>{formatCurrency(amount)}</Text>
-    </View>
-    <View style={styles.catBarBg}>
-      <View style={[styles.catBarFill, { width: `${percentage}%`, backgroundColor: color }]} />
-    </View>
-    <Text style={styles.catPercent}>{percentage.toFixed(0)}%</Text>
-  </View>
-);
-
-const CAT_COLORS = [Colors.primary, Colors.secondary, Colors.danger, '#7C3AED', '#0891B2', '#16A34A'];
-
-/* ─── Frequent Item Row ──────────────────────────────────────────────── */
-
-const FrequentItemRow: React.FC<{ item: FrequentItem; index: number }> = ({ item, index }) => (
-  <View style={styles.freqRow}>
-    <View style={styles.freqRank}>
-      <Text style={styles.freqRankText}>{index + 1}</Text>
-    </View>
-    <View style={styles.freqInfo}>
-      <Text style={styles.freqName}>{item.name}</Text>
-      <Text style={styles.freqMeta}>{item.count} purchases</Text>
-    </View>
-    <Text style={styles.freqAmount}>{formatCurrency(item.totalSpent)}</Text>
-  </View>
-);
-
-/* ─── Menu Card ────────────────────────────────────────────────────────── */
-
-const MenuCard: React.FC<{ item: TodayMenuItem }> = ({ item }) => {
-  const dotColor = item.available ? '#22C55E' : '#EF4444';
-  return (
-  <View style={[styles.menuCard, !item.available && styles.menuCardUnavailable]}>
-    <View style={styles.menuTop}>
-      <View style={[styles.menuDot, { backgroundColor: dotColor }]} />
-      <Text style={styles.menuName} numberOfLines={1}>{item.name}</Text>
-    </View>
-    <Text style={styles.menuDesc} numberOfLines={2}>{item.description}</Text>
-    <View style={styles.menuBottom}>
-      <Text style={styles.menuPrice}>{formatCurrency(item.price)}</Text>
-      <Text style={styles.menuCategory}>{item.category}</Text>
-    </View>
-  </View>
   );
 };
 
-/* ─── Notification Row ────────────────────────────────────────────────── */
+/* ─── Menu Card ──────────────────────────────────────────────────────── */
+
+const MenuCard: React.FC<{ item: TodayMenuItem }> = ({ item }) => (
+  <View style={[styles.menuCard, !item.available && styles.menuCardUnavailable]}>
+    {item.available ? (
+      <View style={styles.menuAvailBadge}>
+        <Text style={styles.menuAvailText}>Available</Text>
+      </View>
+    ) : (
+      <View style={[styles.menuAvailBadge, styles.menuSoldOutBadge]}>
+        <Text style={[styles.menuAvailText, styles.menuSoldOutText]}>Sold Out</Text>
+      </View>
+    )}
+    <View style={styles.menuIconWrap}>
+      <View style={styles.menuIconDot} />
+    </View>
+    <Text style={styles.menuName} numberOfLines={1}>{item.name}</Text>
+    <Text style={styles.menuDesc} numberOfLines={2}>{item.description}</Text>
+    <View style={styles.menuBottom}>
+      <Text style={styles.menuPrice}>{formatCurrency(item.price)}</Text>
+      <View style={styles.menuCategoryPill}>
+        <Text style={styles.menuCategoryText}>{item.category}</Text>
+      </View>
+    </View>
+  </View>
+);
+
+/* ─── Notification Row ───────────────────────────────────────────────── */
 
 const notifyColors: Record<string, string> = {
   info: Colors.primary,
@@ -197,30 +142,33 @@ const notifyColors: Record<string, string> = {
   promo: '#22C55E',
 };
 
-const NotificationRow: React.FC<{ item: SnackBarNotification }> = ({ item }) => (
-  <View style={[styles.notifyRow, !item.read && styles.notifyRowUnread]}>
-    <View style={[styles.notifyDot, { backgroundColor: notifyColors[item.type] }]} />
-    <View style={styles.notifyContent}>
-      <Text style={styles.notifyTitle}>{item.title}</Text>
-      <Text style={styles.notifyMsg} numberOfLines={2}>{item.message}</Text>
-      <Text style={styles.notifyDate}>{formatDate(item.date)}</Text>
+const NotificationRow: React.FC<{ item: SnackBarNotification }> = ({ item }) => {
+  const dotColor = notifyColors[item.type] || notifyColors.info;
+  return (
+    <View style={[styles.notifyRow, !item.read && styles.notifyRowUnread]}>
+      {!item.read && <View style={[styles.notifyAccent, { backgroundColor: dotColor }]} />}
+      <View style={[styles.notifyTypeDot, { backgroundColor: dotColor }]} />
+      <View style={styles.notifyContent}>
+        <View style={styles.notifyTitleRow}>
+          <Text style={styles.notifyTitle}>{item.title}</Text>
+          {!item.read && <View style={[styles.notifyUnreadDot, { backgroundColor: dotColor }]} />}
+        </View>
+        <Text style={styles.notifyMsg} numberOfLines={2}>{item.message}</Text>
+        <Text style={styles.notifyDate}>{formatDate(item.date)}</Text>
+      </View>
     </View>
-  </View>
-);
+  );
+};
 
 /* ─── Main Screen ────────────────────────────────────────────────────── */
 
 const SnackBarWalletScreen: React.FC = () => {
   const [summary, setSummary] = useState<LoadState<SnackBarSummary>>(initialLoadState);
   const [monthlySpending, setMonthlySpending] = useState<LoadState<MonthlySpending[]>>(initialLoadState);
-  const [recentPurchases, setRecentPurchases] = useState<LoadState<PurchaseItem[]>>(initialLoadState);
   const [allPurchases, setAllPurchases] = useState<LoadState<PurchaseItem[]>>(initialLoadState);
-  const [analytics, setAnalytics] = useState<LoadState<SpendingAnalytics>>(initialLoadState);
-  const [insights, setInsights] = useState<LoadState<EmployeeInsight>>(initialLoadState);
-  const [frequentItems, setFrequentItems] = useState<LoadState<FrequentItem[]>>(initialLoadState);
   const [todayMenu, setTodayMenu] = useState<LoadState<TodayMenuItem[]>>(initialLoadState);
-  const [pendingTxns, setPendingTxns] = useState<LoadState<PendingTransaction[]>>(initialLoadState);
   const [notifications, setNotifications] = useState<LoadState<SnackBarNotification[]>>(initialLoadState);
+  const [refreshing, setRefreshing] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'amount' | 'name'>('date');
@@ -246,18 +194,26 @@ const SnackBarWalletScreen: React.FC = () => {
 
     withErr(setSummary, SnackBarService.getSummary());
     withErr(setMonthlySpending, SnackBarService.getMonthlySpending());
-    withErr(setRecentPurchases, SnackBarService.getRecentPurchases());
     withErr(setAllPurchases, SnackBarService.getPurchaseHistory());
-    withErr(setAnalytics, SnackBarService.getAnalytics());
-    withErr(setInsights, SnackBarService.getInsights());
-    withErr(setFrequentItems, SnackBarService.getFrequentItems());
     withErr(setTodayMenu, SnackBarService.getTodayMenu());
-    withErr(setPendingTxns, SnackBarService.getPendingTransactions());
     withErr(setNotifications, SnackBarService.getNotifications());
   }, []);
 
   useEffect(() => {
     runQuery();
+  }, [runQuery]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([
+      SnackBarService.getSummary(),
+      SnackBarService.getMonthlySpending(),
+      SnackBarService.getPurchaseHistory(),
+      SnackBarService.getTodayMenu(),
+      SnackBarService.getNotifications(),
+    ]);
+    runQuery();
+    setRefreshing(false);
   }, [runQuery]);
 
   const filteredPurchases = useMemo(() => {
@@ -285,9 +241,9 @@ const SnackBarWalletScreen: React.FC = () => {
   const isInitialLoading =
     summary.loading &&
     monthlySpending.loading &&
-    recentPurchases.loading &&
     allPurchases.loading &&
-    analytics.loading;
+    todayMenu.loading &&
+    notifications.loading;
 
   if (isInitialLoading) {
     return (
@@ -295,14 +251,14 @@ const SnackBarWalletScreen: React.FC = () => {
         <AppHeader title="Snack Bar Wallet" showBack />
         <View style={styles.centerLoader}>
           <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Loading your wallet...</Text>
+          <Text style={styles.loadingText}>Loading your snack bar...</Text>
         </View>
       </AppScreen>
     );
   }
 
   const allFailed =
-    summary.error && monthlySpending.error && recentPurchases.error && analytics.error;
+    summary.error && monthlySpending.error && allPurchases.error;
 
   return (
     <AppScreen>
@@ -310,115 +266,123 @@ const SnackBarWalletScreen: React.FC = () => {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[Colors.primary]}
+            tintColor={Colors.primary}
+          />
+        }
       >
-        {/* Dashboard Summary */}
+        {/* Stats Grid: Total Spent | This Month | Monthly Avg | Salary Deduction */}
         {summary.data ? (
-          <SummaryCard summary={summary.data} />
+          <View style={styles.statsGrid}>
+            <StatCard label="Total Spent" value={formatCurrency(summary.data.totalSpent)} accent />
+            <StatCard label="This Month" value={formatCurrency(summary.data.currentMonthSpent)} />
+            <StatCard label="Monthly Avg" value={formatCurrency(summary.data.monthlyAverage)} />
+            <StatCard
+              label="Salary Deduction"
+              value={formatCurrency(summary.data.salaryDeduction)}
+            />
+          </View>
         ) : summary.error ? (
           <SectionError message={summary.error} onRetry={() => runQuery()} />
         ) : (
           <SectionLoader />
         )}
 
-        {/* Insights Row */}
-        {insights.data && (
-          <View style={styles.insightsRow}>
-            <InfoPill
-              label="Rank"
-              value={`#${insights.data.rank} / ${insights.data.totalEmployees}`}
-              color={Colors.primary}
-            />
-            <InfoPill
-              label="Percentile"
-              value={`${insights.data.percentile}%`}
-              color={Colors.secondary}
-            />
-            <InfoPill
-              label="Dept Avg"
-              value={formatCurrency(insights.data.departmentAverage)}
-              color="#22C55E"
-            />
-          </View>
-        )}
-
-        {/* Monthly Spending */}
+        {/* Monthly Summary */}
         <SectionCard title="Monthly Summary">
           {monthlySpending.loading ? (
             <SectionLoader />
           ) : monthlySpending.error ? (
             <SectionError message={monthlySpending.error} onRetry={() => runQuery()} />
           ) : monthlySpending.data && monthlySpending.data.length > 0 ? (
-            monthlySpending.data.map((m, i) => (
-              <View key={`${m.month}-${m.year}`}>
-                {i > 0 && <View style={styles.divider} />}
-                <View style={styles.monthRow}>
-                  <View style={styles.monthInfo}>
-                    <Text style={styles.monthLabel}>{m.month} {m.year}</Text>
-                    <Text style={styles.monthCount}>{m.transactionCount} transactions</Text>
+            (() => {
+              const maxAmount = Math.max(...monthlySpending.data.map(m => m.amount));
+              const isCurrentMonth = (m: MonthlySpending) => {
+                const now = new Date();
+                const monthNames = ['January','February','March','April','May','June','July',
+                  'August','September','October','November','December'];
+                return m.month === monthNames[now.getMonth()] && m.year === now.getFullYear();
+              };
+              return monthlySpending.data.map((m, i) => {
+                const current = isCurrentMonth(m);
+                return (
+                  <View key={`${m.month}-${m.year}`}>
+                    {i > 0 && <View style={styles.divider} />}
+                    <View style={[styles.monthRow, current && styles.monthRowCurrent]}>
+                      {current && (
+                        <View style={styles.monthCurrentTab}>
+                          <Text style={styles.monthCurrentTabText}>Now</Text>
+                        </View>
+                      )}
+                      <View style={styles.monthLeft}>
+                        <View style={styles.monthInfo}>
+                          <Text style={[styles.monthLabel, current && styles.monthLabelCurrent]}>
+                            {m.month.slice(0, 3)} {m.year}
+                          </Text>
+                          <Text style={styles.monthCount}>{m.transactionCount} txns</Text>
+                        </View>
+                        <View style={styles.monthBarWrap}>
+                          <View
+                            style={[
+                              styles.monthBar,
+                              {
+                                width: `${Math.max((m.amount / maxAmount) * 100, 4)}%`,
+                                backgroundColor: current ? Colors.secondary : `${Colors.primary}60`,
+                              },
+                            ]}
+                          />
+                        </View>
+                      </View>
+                      <View style={styles.monthRight}>
+                        <Text style={[styles.monthAmount, current && styles.monthAmountCurrent]}>
+                          {formatCurrency(m.amount)}
+                        </Text>
+                        {m.deductionAmount > 0 && (
+                          <Text style={styles.monthDeduction}>
+                            -{formatCurrency(m.deductionAmount)}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
                   </View>
-                  <View style={styles.monthRight}>
-                    <Text style={styles.monthAmount}>{formatCurrency(m.amount)}</Text>
-                    {m.deductionAmount > 0 && (
-                      <Text style={styles.monthDeduction}>
-                        Deduction: {formatCurrency(m.deductionAmount)}
-                      </Text>
-                    )}
-                  </View>
-                </View>
-              </View>
-            ))
+                );
+              });
+            })()
           ) : (
             <SectionEmpty message="No monthly data available" />
           )}
         </SectionCard>
 
-        {/* Salary Deduction */}
-        {summary.data && summary.data.salaryDeduction > 0 && (
-          <SectionCard title="Salary Deduction">
-            <View style={styles.deductionCard}>
-              <View style={styles.deductionLeft}>
-                <Text style={styles.deductionLabel}>Monthly Snack Bar Deduction</Text>
-                <Text style={styles.deductionSub}>
-                  Automatically deducted from your salary
-                </Text>
-              </View>
-              <Text style={styles.deductionAmount}>
-                {formatCurrency(summary.data.salaryDeduction)}
-              </Text>
-            </View>
-          </SectionCard>
-        )}
-
-        {/* Recent Purchases */}
-        <SectionCard title="Recent Purchases">
-          {recentPurchases.loading ? (
-            <SectionLoader />
-          ) : recentPurchases.error ? (
-            <SectionError message={recentPurchases.error} onRetry={() => runQuery()} />
-          ) : recentPurchases.data && recentPurchases.data.length > 0 ? (
-            recentPurchases.data.map((item, i) => (
-              <View key={item.id}>
-                {i > 0 && <View style={styles.divider} />}
-                <PurchaseRow item={item} />
-              </View>
-            ))
-          ) : (
-            <SectionEmpty message="No recent purchases" />
-          )}
-        </SectionCard>
-
-        {/* Full Purchase History */}
+        {/* Purchase History */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionHeaderTitle}>Purchase History</Text>
+          {allPurchases.data && (
+            <View style={styles.sectionHeaderBadge}>
+              <Text style={styles.sectionHeaderBadgeText}>
+                {allPurchases.data.length} total
+              </Text>
+            </View>
+          )}
         </View>
         <View style={styles.historyControls}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search items or category..."
-            placeholderTextColor={Colors.textSecondary}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
+          <View style={styles.searchWrap}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search items or category..."
+              placeholderTextColor={Colors.textSecondary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.searchClear}>
+                <Text style={styles.searchClearText}>{'\u2715'}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
           <View style={styles.sortRow}>
             {(['date', 'amount', 'name'] as const).map(s => (
               <TouchableOpacity
@@ -450,78 +414,13 @@ const SnackBarWalletScreen: React.FC = () => {
           )}
         </View>
 
-        {/* Spending Analytics */}
-        {(() => {
-          const a = analytics.data;
-          if (!a) return null;
-          const maxTrend = a.monthlyTrend.length > 0 ? Math.max(...a.monthlyTrend.map(x => x.amount)) : 1;
-          return (
-          <SectionCard title="Spending Analytics">
-            <View style={styles.analyticsStatsRow}>
-              <InfoPill label="Transactions" value={String(a.totalTransactions)} color={Colors.primary} />
-              <InfoPill label="Total" value={formatCurrency(a.totalSpent)} color={Colors.secondary} />
-              <InfoPill label="Avg/Txn" value={formatCurrency(a.averagePerTransaction)} color="#22C55E" />
-            </View>
-            <View style={styles.analyticsMeta}>
-              <Text style={styles.analyticsMetaText}>
-                Busiest: {a.busiestDay} at {a.busiestTime}
-              </Text>
-            </View>
-            {a.categoryBreakdown.length > 0 && (
-              <View style={styles.catSection}>
-                <Text style={styles.catSectionTitle}>Category Breakdown</Text>
-                {a.categoryBreakdown.map((cat, i) => (
-                  <CategoryBar
-                    key={cat.category}
-                    category={cat.category}
-                    amount={cat.amount}
-                    percentage={cat.percentage}
-                    color={CAT_COLORS[i % CAT_COLORS.length]}
-                  />
-                ))}
-              </View>
-            )}
-            {a.monthlyTrend.length > 0 && (
-              <View style={styles.catSection}>
-                <Text style={styles.catSectionTitle}>Monthly Trend</Text>
-                {a.monthlyTrend.map((t, i) => (
-                  <View key={i} style={styles.trendRow}>
-                    <Text style={styles.trendMonth}>{t.month} {t.year}</Text>
-                    <View style={styles.trendBarBg}>
-                      <View
-                        style={[
-                          styles.trendBarFill,
-                          {
-                            width: `${Math.min((t.amount / maxTrend) * 100, 100)}%`,
-                            backgroundColor: Colors.secondary,
-                          },
-                        ]}
-                      />
-                    </View>
-                    <Text style={styles.trendAmount}>{formatCurrency(t.amount)}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
-          </SectionCard>
-          );
-        })()}
-
-        {/* Frequently Purchased Items */}
-        {frequentItems.data && frequentItems.data.length > 0 && (
-          <SectionCard title="Frequently Purchased Items">
-            {frequentItems.data.map((item, i) => (
-              <View key={item.name}>
-                {i > 0 && <View style={styles.divider} />}
-                <FrequentItemRow item={item} index={i} />
-              </View>
-            ))}
-          </SectionCard>
-        )}
-
-        {/* Today's Menu */}
-        {todayMenu.data && todayMenu.data.length > 0 && (
-          <SectionCard title="Today's Menu">
+        {/* Today's Goodies */}
+        <SectionCard title="Today's Goodies">
+          {todayMenu.loading ? (
+            <SectionLoader />
+          ) : todayMenu.error ? (
+            <SectionError message={todayMenu.error} onRetry={() => runQuery()} />
+          ) : todayMenu.data && todayMenu.data.length > 0 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={styles.menuRow}>
                 {todayMenu.data.map(item => (
@@ -529,56 +428,36 @@ const SnackBarWalletScreen: React.FC = () => {
                 ))}
               </View>
             </ScrollView>
-          </SectionCard>
-        )}
+          ) : (
+            <SectionEmpty message="No items available today" />
+          )}
+        </SectionCard>
 
-        {/* Pending Transactions */}
-        {pendingTxns.data && pendingTxns.data.length > 0 && (
-          <SectionCard title="Pending Transactions">
-            {pendingTxns.data.map((item, i) => (
-              <View key={item.id}>
-                {i > 0 && <View style={styles.divider} />}
-                <View style={styles.pendingRow}>
-                  <View style={styles.pendingLeft}>
-                    <Text style={styles.pendingName}>{item.itemName}</Text>
-                    <Text style={styles.pendingMeta}>
-                      {formatDate(item.date)} &middot; Est. {item.estimatedCompletion}
-                    </Text>
-                  </View>
-                  <View style={styles.pendingRight}>
-                    <Text style={styles.pendingAmount}>{formatCurrency(item.amount)}</Text>
-                    <View style={[styles.pendingBadge, { backgroundColor: `${statusColors[item.status]}20` }]}>
-                      <Text style={[styles.pendingBadgeText, { color: statusColors[item.status] }]}>
-                        {item.status.replace('_', ' ')}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              </View>
-            ))}
-          </SectionCard>
-        )}
-
-        {/* Notifications */}
-        {notifications.data && notifications.data.length > 0 && (
-          <SectionCard title="Snack Bar Notifications">
-            {notifications.data.map((item, i) => (
+        {/* Snack Bar News */}
+        <SectionCard title="Snack Bar News">
+          {notifications.loading ? (
+            <SectionLoader />
+          ) : notifications.error ? (
+            <SectionError message={notifications.error} onRetry={() => runQuery()} />
+          ) : notifications.data && notifications.data.length > 0 ? (
+            notifications.data.map((item, i) => (
               <View key={item.id}>
                 {i > 0 && <View style={styles.divider} />}
                 <NotificationRow item={item} />
               </View>
-            ))}
-          </SectionCard>
-        )}
+            ))
+          ) : (
+            <SectionEmpty message="No news available" />
+          )}
+        </SectionCard>
 
-        {/* Global Error State */}
         {allFailed && (
           <View style={styles.globalError}>
             <Text style={styles.globalErrorTitle}>Unable to load Snack Bar data</Text>
             <Text style={styles.globalErrorMsg}>
               Please check your connection and try again.
             </Text>
-            <TouchableOpacity style={styles.globalRetryBtn}>
+            <TouchableOpacity style={styles.globalRetryBtn} onPress={runQuery}>
               <Text style={styles.globalRetryText}>Retry</Text>
             </TouchableOpacity>
           </View>
@@ -589,8 +468,6 @@ const SnackBarWalletScreen: React.FC = () => {
     </AppScreen>
   );
 };
-
-/* ─── Styles ──────────────────────────────────────────────────────────── */
 
 const styles = StyleSheet.create({
   scrollContent: {
@@ -608,130 +485,121 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
 
-  /* Summary */
-  summaryContainer: {
+  /* Stats Grid */
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     marginHorizontal: 16,
     marginTop: 16,
-    marginBottom: 16,
+    marginBottom: 8,
+    gap: 10,
+  },
+  statCard: {
+    width: '47%',
     backgroundColor: Colors.white,
-    borderRadius: 20,
-    overflow: 'hidden',
+    borderRadius: 18,
+    padding: 16,
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
-    shadowRadius: 8,
+    shadowRadius: 6,
   },
-  summaryMain: {
-    padding: 20,
-    alignItems: 'center',
+  statCardAccent: {
     backgroundColor: Colors.primary,
   },
-  summaryLabel: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.7)',
-    fontWeight: '500',
-    marginBottom: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  summaryAmount: {
-    fontSize: 32,
+  statValue: {
+    fontSize: 20,
     fontWeight: '800',
+    color: Colors.textPrimary,
+    marginBottom: 4,
+  },
+  statValueLight: {
     color: Colors.white,
   },
-  summarySub: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.65)',
-    marginTop: 4,
-  },
-  summaryDivider: {
-    height: 1,
-    backgroundColor: Colors.border,
-  },
-  summaryStats: {
-    flexDirection: 'row',
-    padding: 16,
-  },
-  summaryStat: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  summaryStatVal: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  summaryStatGreen: {
-    color: '#22C55E',
-  },
-  summaryStatLabel: {
+  statLabel: {
     fontSize: 11,
-    color: Colors.textSecondary,
-    marginTop: 2,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-
-  /* Insights */
-  insightsRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    marginBottom: 16,
-    gap: 10,
-  },
-  infoPill: {
-    flex: 1,
-    backgroundColor: Colors.white,
-    borderRadius: 14,
-    padding: 12,
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-  },
-  infoPillLabel: {
-    fontSize: 10,
+    fontWeight: '600',
     color: Colors.textSecondary,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 4,
+    letterSpacing: 0.4,
   },
-  infoPillValue: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: Colors.textPrimary,
+  statLabelLight: {
+    color: 'rgba(255,255,255,0.75)',
   },
 
   /* Monthly */
   monthRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 12,
+    paddingLeft: 4,
+    position: 'relative',
   },
-  monthInfo: {
+  monthRowCurrent: {
+    backgroundColor: `${Colors.secondary}08`,
+    marginHorizontal: -16,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+  },
+  monthCurrentTab: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    backgroundColor: Colors.secondary,
+    borderBottomRightRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  monthCurrentTabText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: Colors.white,
+    letterSpacing: 0.5,
+  },
+  monthLeft: {
     flex: 1,
     marginRight: 12,
+  },
+  monthInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
   },
   monthLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: Colors.textPrimary,
   },
+  monthLabelCurrent: {
+    color: Colors.secondary,
+  },
   monthCount: {
-    fontSize: 12,
+    fontSize: 11,
     color: Colors.textSecondary,
-    marginTop: 2,
+  },
+  monthBarWrap: {
+    height: 6,
+    backgroundColor: Colors.surface,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  monthBar: {
+    height: 6,
+    borderRadius: 3,
   },
   monthRight: {
     alignItems: 'flex-end',
+    minWidth: 80,
   },
   monthAmount: {
     fontSize: 15,
     fontWeight: '700',
     color: Colors.textPrimary,
+  },
+  monthAmountCurrent: {
+    color: Colors.secondary,
   },
   monthDeduction: {
     fontSize: 11,
@@ -739,103 +607,75 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  /* Deduction */
-  deductionCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  deductionLeft: {
-    flex: 1,
-    marginRight: 12,
-  },
-  deductionLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-    marginBottom: 2,
-  },
-  deductionSub: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-  },
-  deductionAmount: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.danger,
-  },
-
-  /* Purchase Row */
-  purchaseRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
-  purchaseLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 12,
-  },
-  purchaseIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 10,
-  },
-  purchaseInfo: {
-    flex: 1,
-  },
-  purchaseName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-  },
-  purchaseMeta: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  purchaseAmount: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-  },
-
   /* Purchase History */
   sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 20,
     marginBottom: 8,
-    marginTop: 8,
+    marginTop: 16,
+    gap: 10,
   },
   sectionHeaderTitle: {
     fontSize: Fonts.sizes.md,
     fontFamily: Fonts.bold,
     color: Colors.textPrimary,
   },
+  sectionHeaderBadge: {
+    backgroundColor: `${Colors.primary}12`,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  sectionHeaderBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.primary,
+  },
   historyControls: {
     paddingHorizontal: 16,
     marginBottom: 8,
   },
-  searchInput: {
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: Colors.white,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: Colors.textPrimary,
+    borderRadius: 14,
+    paddingHorizontal: 14,
     borderWidth: 1,
     borderColor: Colors.border,
     marginBottom: 8,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+  },
+  searchInput: {
+    flex: 1,
+    height: 44,
+    fontSize: 14,
+    color: Colors.textPrimary,
+    padding: 0,
+  },
+  searchClear: {
+    padding: 4,
+    marginLeft: 4,
+  },
+  searchClearText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontWeight: '700',
   },
   sortRow: {
     flexDirection: 'row',
     gap: 8,
   },
   sortChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: 20,
     backgroundColor: Colors.white,
     borderWidth: 1,
@@ -857,9 +697,9 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 16,
     backgroundColor: Colors.white,
-    borderRadius: 14,
+    borderRadius: 16,
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 4,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -867,173 +707,133 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
   },
 
-  /* Analytics */
-  analyticsStatsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12,
-  },
-  analyticsMeta: {
-    marginBottom: 12,
-  },
-  analyticsMetaText: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    fontStyle: 'italic',
-  },
-  catSection: {
-    marginTop: 12,
-  },
-  catSectionTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-    marginBottom: 10,
-  },
-  catRow: {
-    marginBottom: 10,
-  },
-  catHeader: {
+  /* Purchase Row */
+  purchaseRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    alignItems: 'center',
+    paddingVertical: 12,
   },
-  catName: {
-    fontSize: 13,
-    color: Colors.textPrimary,
-    fontWeight: '500',
+  purchaseLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 12,
   },
-  catAmount: {
-    fontSize: 13,
+  purchaseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 10,
+  },
+  purchaseInfo: {
+    flex: 1,
+  },
+  purchaseName: {
+    fontSize: 14,
     fontWeight: '600',
     color: Colors.textPrimary,
-  },
-  catBarBg: {
-    height: 8,
-    backgroundColor: Colors.surface,
-    borderRadius: 4,
     marginBottom: 2,
   },
-  catBarFill: {
-    height: 8,
-    borderRadius: 4,
-  },
-  catPercent: {
+  purchaseMeta: {
     fontSize: 11,
     color: Colors.textSecondary,
-    textAlign: 'right',
   },
-
-  /* Trend */
-  trendRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 10,
+  purchaseRight: {
+    alignItems: 'flex-end',
   },
-  trendMonth: {
-    width: 60,
-    fontSize: 12,
-    color: Colors.textPrimary,
-    fontWeight: '500',
-  },
-  trendBarBg: {
-    flex: 1,
-    height: 8,
-    backgroundColor: Colors.surface,
-    borderRadius: 4,
-  },
-  trendBarFill: {
-    height: 8,
-    borderRadius: 4,
-  },
-  trendAmount: {
-    width: 70,
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-    textAlign: 'right',
-  },
-
-  /* Frequent Items */
-  freqRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  freqRank: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: Colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  freqRankText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: Colors.textSecondary,
-  },
-  freqInfo: {
-    flex: 1,
-    marginRight: 12,
-  },
-  freqName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-  },
-  freqMeta: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    marginTop: 1,
-  },
-  freqAmount: {
+  purchaseAmount: {
     fontSize: 14,
     fontWeight: '700',
     color: Colors.textPrimary,
+    marginBottom: 3,
+  },
+  purchaseBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 5,
+  },
+  purchaseBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
 
   /* Menu */
   menuRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 12,
     paddingVertical: 4,
   },
   menuCard: {
-    width: 150,
-    backgroundColor: Colors.surface,
-    borderRadius: 14,
-    padding: 12,
+    width: 160,
+    backgroundColor: Colors.white,
+    borderRadius: 18,
+    padding: 14,
     borderWidth: 1,
     borderColor: Colors.border,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    position: 'relative',
+    overflow: 'hidden',
   },
   menuCardUnavailable: {
-    opacity: 0.55,
+    opacity: 0.6,
   },
-  menuTop: {
-    flexDirection: 'row',
+  menuAvailBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#22C55E',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    zIndex: 1,
+  },
+  menuSoldOutBadge: {
+    backgroundColor: '#EF4444',
+  },
+  menuAvailText: {
+    fontSize: 8,
+    fontWeight: '700',
+    color: Colors.white,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  menuSoldOutText: {
+    color: Colors.white,
+  },
+  menuIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: `${Colors.primary}10`,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 10,
   },
-  menuDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
+  menuIconDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.primary,
+    opacity: 0.3,
   },
   menuName: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
     color: Colors.textPrimary,
-    flex: 1,
+    marginBottom: 4,
   },
   menuDesc: {
     fontSize: 11,
     color: Colors.textSecondary,
     lineHeight: 15,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   menuBottom: {
     flexDirection: 'row',
@@ -1041,84 +841,64 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   menuPrice: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
     color: Colors.primary,
   },
-  menuCategory: {
-    fontSize: 10,
+  menuCategoryPill: {
+    backgroundColor: Colors.surface,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  menuCategoryText: {
+    fontSize: 9,
+    fontWeight: '600',
     color: Colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
 
-  /* Pending */
-  pendingRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
-  pendingLeft: {
-    flex: 1,
-    marginRight: 12,
-  },
-  pendingName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-  },
-  pendingMeta: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  pendingRight: {
-    alignItems: 'flex-end',
-  },
-  pendingAmount: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    marginBottom: 4,
-  },
-  pendingBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  pendingBadgeText: {
-    fontSize: 10,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  },
-
   /* Notifications */
   notifyRow: {
     flexDirection: 'row',
-    paddingVertical: 10,
+    paddingVertical: 12,
+    paddingLeft: 4,
+    position: 'relative',
   },
   notifyRowUnread: {
     backgroundColor: `${Colors.primary}06`,
     marginHorizontal: -16,
     paddingHorizontal: 16,
-    borderRadius: 8,
+    borderRadius: 10,
   },
-  notifyDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginTop: 5,
-    marginRight: 12,
+  notifyAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 8,
+    bottom: 8,
+    width: 3,
+    borderRadius: 2,
   },
   notifyContent: {
     flex: 1,
+  },
+  notifyTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
   },
   notifyTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: Colors.textPrimary,
-    marginBottom: 2,
+    flex: 1,
+  },
+  notifyUnreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginLeft: 8,
   },
   notifyMsg: {
     fontSize: 12,
@@ -1129,6 +909,13 @@ const styles = StyleSheet.create({
   notifyDate: {
     fontSize: 11,
     color: '#A0A0A0',
+  },
+  notifyTypeDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 12,
+    marginTop: 5,
   },
 
   /* Placeholder / Error */
@@ -1156,10 +943,6 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: Colors.border,
-  },
-
-  left: {
-    marginLeft: 16,
   },
 
   /* Global Error */

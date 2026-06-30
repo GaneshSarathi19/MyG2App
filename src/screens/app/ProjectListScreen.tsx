@@ -26,25 +26,20 @@ const PRIORITY_DOT: Record<string, string> = {
   low: '#16A34A',
 };
 
-const AVATAR_COLORS = ['#003C64', '#F86F18', '#C5122C', '#16A34A', '#7C3AED', '#0891B2'];
-
-const TeamMemberCard: React.FC<{ member: TeamMember; index: number }> = ({ member, index }) => {
-  const avatarBg = AVATAR_COLORS[index % AVATAR_COLORS.length];
-  return (
-    <View style={styles.memberCard}>
-      <View style={[styles.memberAvatar, { backgroundColor: avatarBg }]}>
-        <Text style={styles.memberAvatarText}>{member.initials}</Text>
-      </View>
-      <View style={styles.memberInfo}>
-        <Text style={styles.memberName}>{member.name}</Text>
-        <View style={styles.memberRoleRow}>
-          <View style={[styles.roleDot, { backgroundColor: avatarBg }]} />
-          <Text style={styles.memberRole}>{member.role}</Text>
-        </View>
+const TeamMemberCard: React.FC<{ member: TeamMember }> = ({ member }) => (
+  <View style={styles.memberCard}>
+    <View style={[styles.memberAvatar, { backgroundColor: Colors.primary }]}>
+      <Text style={styles.memberAvatarText}>{member.initials}</Text>
+    </View>
+    <View style={styles.memberInfo}>
+      <Text style={styles.memberName}>{member.name}</Text>
+      <View style={styles.memberRoleRow}>
+        <View style={[styles.roleDot, { backgroundColor: Colors.primary }]} />
+        <Text style={styles.memberRole}>{member.role}</Text>
       </View>
     </View>
-  );
-};
+  </View>
+);
 
 const TeamModal: React.FC<{
   visible: boolean;
@@ -57,7 +52,9 @@ const TeamModal: React.FC<{
       <View style={styles.modalContainer}>
         <View style={styles.modalHeader}>
           <View style={styles.modalHeaderLeft}>
-            <Text style={styles.modalHeaderIcon}>{'\u{1F91D}'}</Text>
+            <View style={styles.modalHeaderIconCircle}>
+              <Text style={styles.modalHeaderIconText}>P</Text>
+            </View>
             <View style={styles.modalHeaderText}>
               <Text style={styles.modalTitle} numberOfLines={1}>{projectName}</Text>
               <Text style={styles.modalSubtitle}>{members.length} Team Member{members.length !== 1 ? 's' : ''}</Text>
@@ -69,7 +66,7 @@ const TeamModal: React.FC<{
         </View>
         <ScrollView style={styles.modalBody} contentContainerStyle={styles.modalBodyContent}>
           {members.map((m, i) => (
-            <TeamMemberCard key={i} member={m} index={i} />
+            <TeamMemberCard key={i} member={m} />
           ))}
         </ScrollView>
       </View>
@@ -351,9 +348,19 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 12,
   },
-  modalHeaderIcon: {
-    fontSize: 22,
+  modalHeaderIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
+  },
+  modalHeaderIconText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.white,
   },
   modalHeaderText: {
     flex: 1,

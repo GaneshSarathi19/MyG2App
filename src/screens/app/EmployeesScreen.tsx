@@ -7,10 +7,12 @@ import {
   TextInput,
   Pressable,
   FlatList,
+  Linking,
+  Modal,
+  ActivityIndicator,
 } from 'react-native';
 import AppScreen from '../../components/layout/AppScreen';
 import AppHeader from '../../components/common/AppHeader';
-import { ScrollableList } from '../../components/scrollable/ScrollableList';
 import { EmployeeService } from '../../services/EmployeeService';
 import { EmployeeRecord } from '../../api/interfaces/EmployeeTypes';
 import { Colors, Fonts } from '../../theme';
@@ -52,6 +54,10 @@ const hashName = (name: string): number => {
 
 const getAvatarColor = (name: string): string =>
   AVATAR_COLORS[hashName(name) % AVATAR_COLORS.length];
+
+
+
+
 
 /* ─── Filter Chip Bar ────────────────────────────────────────────────── */
 
@@ -95,6 +101,8 @@ const FilterChipBar: React.FC<FilterChipBarProps> = ({
 /* ─── Employee Card ──────────────────────────────────────────────────── */
 
 const EmployeeCard: React.FC<EmployeeCardProps> = ({ item }) => {
+  const [callTarget, setCallTarget] = useState<{ name: string; phone: string } | null>(null);
+
   const initials = useMemo(() => {
     const parts = item.Name.trim()
       .split(' ')
@@ -117,10 +125,13 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ item }) => {
       <View style={styles.empCardAccent} />
       <View style={styles.empCardBody}>
         <View style={styles.empTopRow}>
-          <View style={[styles.empAvatar, { backgroundColor: avatarColor + '18' }]}>
-            <Text style={[styles.empAvatarText, { color: avatarColor }]}>
-              {initials}
-            </Text>
+          <View style={styles.empAvatarWrapper}>
+            <View style={[styles.empAvatar, { backgroundColor: avatarColor + '18' }]}>
+              <Text style={[styles.empAvatarText, { color: avatarColor }]}>
+                {initials}
+              </Text>
+            </View>
+            <View style={[styles.statusDot, item.EmployeeStatus ? styles.statusOnline : styles.statusOffline]} />
           </View>
           <View style={styles.empInfo}>
             <Text style={styles.empName} numberOfLines={1}>
@@ -147,7 +158,71 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ item }) => {
             </Text>
           </View>
         </View>
+
+        {(item.EmployeeContact || item.MentorContact) && (
+          <View style={styles.contactSection}>
+            {item.EmployeeContact && (
+              <View style={styles.contactRow}>
+                <Text style={styles.contactLabel}>Contact</Text>
+                <Text style={styles.contactValue} numberOfLines={1}>
+                  {item.EmployeeContact}
+                </Text>
+                <Pressable
+                  onPress={() => setCallTarget({ name: item.Name, phone: item.EmployeeContact! })}
+                  style={styles.callBtn}
+                >
+                  <Text style={styles.callBtnText}>Call</Text>
+                </Pressable>
+              </View>
+            )}
+            {item.MentorContact && (
+              <View style={[styles.contactRow, styles.contactRowPadded]}>
+                <Text style={styles.contactLabel}>Backup Lead</Text>
+                <Text style={styles.contactValue} numberOfLines={1}>
+                  {item.MentorContact}
+                </Text>
+                <Pressable
+                  onPress={() => setCallTarget({ name: item.Mentor, phone: item.MentorContact! })}
+                  style={styles.callBtn}
+                >
+                  <Text style={styles.callBtnText}>Call</Text>
+                </Pressable>
+              </View>
+            )}
+          </View>
+        )}
       </View>
+
+      <Modal visible={callTarget !== null} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Confirm Call</Text>
+            <Text style={styles.modalMessage}>
+              Are you sure to call "{callTarget?.name}"?
+            </Text>
+            <View style={styles.modalActions}>
+              <Pressable
+                onPress={() => setCallTarget(null)}
+                style={styles.modalCancelBtn}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  const t = callTarget;
+                  setCallTarget(null);
+                  if (t) {
+                    Linking.openURL(`tel:${t.phone}`);
+                  }
+                }}
+                style={styles.modalCallBtn}
+              >
+                <Text style={styles.modalCallText}>Call</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -211,9 +286,9 @@ const EmployeesScreen: React.FC = () => {
   const fetchEmployees = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await EmployeeService.getEmployeeMasterList();
-      if (response.IsSuccess) {
-        setEmployees(response.Data);
+      const res = await EmployeeService.getEmployeeMasterList();
+      if (res.IsSuccess) {
+        setEmployees(res.Data);
       }
     } catch (err) {
       console.error('Failed to fetch employees:', err);
@@ -272,7 +347,6 @@ const EmployeesScreen: React.FC = () => {
       result = result.filter((e) => selectedDesignations.has(e.Designation));
     }
 
-    // Sort alphabetically by name
     result.sort((a, b) => a.Name.localeCompare(b.Name));
 
     return result;
@@ -289,7 +363,6 @@ const EmployeesScreen: React.FC = () => {
       const firstLetter = (emp.Name?.charAt(0) || '#').toUpperCase();
       if (firstLetter !== currentLetter) {
         if (currentLetter) {
-          // Update previous letter header's count
           const prevHeader = items[items.length - 1 - letterCount];
           if (prevHeader && prevHeader.type === 'letter') {
             (prevHeader as { type: 'letter'; letter: string; count: number }).count = letterCount;
@@ -303,7 +376,6 @@ const EmployeesScreen: React.FC = () => {
       items.push({ type: 'employee', data: emp });
     });
 
-    // Update last letter header's count
     if (currentLetter && letterCount > 0) {
       const headerIndex = items.length - 1 - letterCount;
       if (headerIndex >= 0 && items[headerIndex] && items[headerIndex].type === 'letter') {
@@ -415,24 +487,36 @@ const EmployeesScreen: React.FC = () => {
 
       {/* Employee List with Alphabet Scroller */}
       <View style={styles.listContainer}>
-        <ScrollableList
+        {isLoading && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+          </View>
+        )}
+        <FlatList
+          ref={flatListRef}
           data={sectionedData}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
-          isLoading={isLoading}
-          scrollToTopThreshold={400}
-          flatListRef={flatListRef}
-          emptyText="No employees found"
           contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
+            isLoading ? null : (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No employees found</Text>
+              </View>
+            )
+          }
           onScrollToIndexFailed={(info) => {
-            const wait = new Promise<void>((resolve) => setTimeout(resolve, 500));
-            wait.then(() => {
+            flatListRef.current?.scrollToOffset({
+              offset: info.averageItemLength * info.index,
+              animated: true,
+            });
+            setTimeout(() => {
               flatListRef.current?.scrollToIndex({
                 index: info.index,
                 animated: true,
                 viewPosition: 0,
               });
-            });
+            }, 200);
           }}
         />
         {availableLetters.length > 1 && (
@@ -456,7 +540,6 @@ const EmployeesScreen: React.FC = () => {
 /* ─── Styles ──────────────────────────────────────────────────────────── */
 
 const styles = StyleSheet.create({
-  // Search
   searchContainer: {
     paddingHorizontal: 16,
     paddingTop: 12,
@@ -500,7 +583,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // Filters
   filtersContainer: {
     paddingHorizontal: 16,
     paddingBottom: 4,
@@ -517,7 +599,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
-  // Chips
   chipList: {
     paddingVertical: 2,
     gap: 8,
@@ -550,7 +631,6 @@ const styles = StyleSheet.create({
     color: Colors.white,
   },
 
-  // Results
   resultsRow: {
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -579,16 +659,35 @@ const styles = StyleSheet.create({
     color: Colors.secondary,
   },
 
-  // List
   listContainer: {
     flex: 1,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyText: {
+    fontSize: Fonts.sizes.sm,
+    fontFamily: Fonts.regular,
+    color: Colors.textSecondary,
   },
   listContent: {
     paddingHorizontal: 16,
     paddingBottom: 24,
   },
 
-  // Employee Card
   empCard: {
     backgroundColor: Colors.white,
     borderRadius: 14,
@@ -613,13 +712,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  empAvatarWrapper: {
+    width: 44,
+    height: 44,
+    marginRight: 12,
+  },
   empAvatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+  },
+  statusDot: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: Colors.white,
+  },
+  statusOnline: {
+    backgroundColor: '#2E7D32',
+  },
+  statusOffline: {
+    backgroundColor: '#BDBDBD',
   },
   empAvatarText: {
     fontSize: Fonts.sizes.md,
@@ -670,7 +789,45 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
 
-  // Letter Section Header
+  contactSection: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: `${Colors.border}80`,
+  },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 3,
+  },
+  contactRowPadded: {
+    marginTop: 2,
+  },
+  contactLabel: {
+    width: 60,
+    fontSize: Fonts.sizes.xs,
+    fontFamily: Fonts.regular,
+    color: Colors.textSecondary,
+  },
+  contactValue: {
+    flex: 1,
+    fontSize: Fonts.sizes.sm,
+    fontFamily: Fonts.semiBold,
+    color: Colors.textPrimary,
+  },
+  callBtn: {
+    backgroundColor: '#2E7D32',
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 8,
+    marginLeft: 8,
+  },
+  callBtnText: {
+    fontSize: Fonts.sizes.xs,
+    fontFamily: Fonts.semiBold,
+    color: Colors.white,
+  },
+
   letterHeader: {
     paddingTop: 16,
     paddingBottom: 6,
@@ -703,7 +860,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  // Alphabet Index Bar
   alphabetBar: {
     position: 'absolute',
     right: 2,
@@ -724,6 +880,72 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontFamily: Fonts.bold,
     color: Colors.primary,
+  },
+
+  /* ── Call Confirmation Modal ──────────────────────────────── */
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  modalContainer: {
+    width: '100%',
+    backgroundColor: Colors.white,
+    borderRadius: 20,
+    padding: 28,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+  },
+  modalTitle: {
+    fontSize: Fonts.sizes.lg,
+    fontFamily: Fonts.bold,
+    color: Colors.primary,
+    marginBottom: 8,
+  },
+  modalMessage: {
+    fontSize: Fonts.sizes.sm,
+    fontFamily: Fonts.regular,
+    color: Colors.textPrimary,
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+  },
+  modalCancelBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  modalCancelText: {
+    fontSize: Fonts.sizes.sm,
+    fontFamily: Fonts.semiBold,
+    color: Colors.textSecondary,
+  },
+  modalCallBtn: {
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: Colors.primary,
+    elevation: 2,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  modalCallText: {
+    fontSize: Fonts.sizes.sm,
+    fontFamily: Fonts.semiBold,
+    color: Colors.white,
   },
 });
 
