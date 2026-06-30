@@ -84,7 +84,7 @@ export const refreshAuthToken = createAsyncThunk<
   {authToken: string; tokenExpiry: number},
   void,
   {rejectValue: string}
->('auth/refreshToken', async (_, {getState, rejectWithValue}) => {
+>('auth/refreshToken', async (_, {getState: _getState, rejectWithValue}) => {
   try {
     // TODO: Replace with actual backend refresh endpoint when available.
     // const state = getState() as RootState;

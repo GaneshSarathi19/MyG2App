@@ -587,7 +587,7 @@ const ApplyLeaveScreen: React.FC = () => {
     try {
       const types = await LeaveService.getLeaveTypeList();
       setLeaveTypes(types);
-    } catch (err) {
+    } catch {
       setTypesError('Failed to load leave types');
     } finally {
       setIsLoadingTypes(false);
@@ -622,7 +622,7 @@ const ApplyLeaveScreen: React.FC = () => {
     setVisibleCount(10);
     try {
       const response = await LeaveService.getEmployeeLeaveSummary();
-      // eslint-disable-next-line no-console
+       
       console.log(
         '[ApplyLeaveScreen] Raw response:',
         JSON.stringify(response, null, 2),
@@ -631,7 +631,7 @@ const ApplyLeaveScreen: React.FC = () => {
       if (response.IsSuccess) {
         const rawData = response.Data || [];
         const normalized = rawData.map(normalizeRecord);
-        // eslint-disable-next-line no-console
+         
         console.log(
           '[ApplyLeaveScreen] Normalized records:',
           JSON.stringify(normalized, null, 2),
@@ -641,7 +641,7 @@ const ApplyLeaveScreen: React.FC = () => {
         setListError(response.Message || 'Failed to fetch leave records');
       }
     } catch (err) {
-      // eslint-disable-next-line no-console
+       
       console.error('[ApplyLeaveScreen] fetchLeaves error:', err);
       setListError(
         err instanceof Error ? err.message : 'Failed to fetch leave records',
@@ -694,7 +694,7 @@ const ApplyLeaveScreen: React.FC = () => {
   }, [leaveDates, dateHoursMap, appliedDate, reason, selectedLeaveType]);
 
   /* ── Reset form ──────────────────────────────────────────────────── */
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setLeaveDates([]);
     setDateHoursMap({});
     setFromDate('');
@@ -709,7 +709,7 @@ const ApplyLeaveScreen: React.FC = () => {
     setIsTypePickerVisible(false);
     setIsEditing(false);
     setEditingRecord(null);
-  };
+  }, [leaveTypes]);
 
   /* ── Open form for new leave ────────────────────────────────────── */
   const openNewForm = () => {
@@ -835,7 +835,7 @@ const ApplyLeaveScreen: React.FC = () => {
         }));
 
         const leaveDetailsPayload = JSON.stringify(leaveDetails);
-        // eslint-disable-next-line no-console
+         
         console.log(
           '[ApplyLeaveScreen] POST LeaveDetails payload:',
           leaveDetailsPayload,
@@ -874,6 +874,8 @@ const ApplyLeaveScreen: React.FC = () => {
     isEditing,
     editingRecord,
     validate,
+    fetchLeaves,
+    resetForm,
   ]);
 
   /* ── Delete handler ────────────────────────────────────────────── */
@@ -1451,21 +1453,6 @@ const ApplyLeaveScreen: React.FC = () => {
 };
 
 /* ─── Styles ──────────────────────────────────────────────────────── */
-
-const getTypeColor = (typeId: string): string => {
-  switch (typeId) {
-    case '27ADC15C-130F-458A-BF20-2F44D092B28B':
-      return '#22C55E'; // Casual - green
-    case '2E5A2B6C-3D4E-4F5A-6B7C-8D9E0A1B2C3D':
-      return '#EF4444'; // Sick - red
-    case '3F6B3C7D-4E5F-5A6B-7C8D-9E0A1B2C3D4E':
-      return '#3B82F6'; // Earned - blue
-    case '4A7C4D8E-5E6F-6A7B-8C9D-0E1A2B3C4D5E':
-      return '#F59E0B'; // Unpaid - orange
-    default:
-      return Colors.primary;
-  }
-};
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },

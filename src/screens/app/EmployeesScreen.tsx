@@ -425,7 +425,7 @@ const EmployeesScreen: React.FC = () => {
           emptyText="No employees found"
           contentContainerStyle={styles.listContent}
           onScrollToIndexFailed={(info) => {
-            const wait = new Promise((resolve) => setTimeout(resolve, 500));
+            const wait = new Promise<void>((resolve) => setTimeout(resolve, 500));
             wait.then(() => {
               flatListRef.current?.scrollToIndex({
                 index: info.index,

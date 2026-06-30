@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import AppScreen from '../../components/layout/AppScreen';
 import AvatarBadge from '../../components/common/AvatarBadge';
 import {getProfileImageUri} from '../../utils/profileImage';
 import { useNavigation } from '@react-navigation/native';
+import { LeaveService } from '../../services/LeaveService';
 
 const G2_LOGO = require('../../resources/g2logo-small.png') as number;
 const CG_VAK_LOGO = require('../../resources/cgvaklogo-small.png') as number;
@@ -51,9 +52,9 @@ const CARDS: CardItem[] = [
   { id: 'news', title: 'News & Announcements', sub: 'Company updates', abbr: 'N', colors: Colors.secondary, badge: 2 },
 ];
  
-const buildStats = (department: string | undefined) => [
+const buildStats = (department: string | undefined, pendingCount: number) => [
   { label: 'Department', value: department || '-', color: Colors.primary },
-  { label: 'Pending Leaves', value: '2', color: Colors.secondary },
+  { label: 'Pending Leaves', value: String(pendingCount), color: Colors.secondary },
   { label: 'Meetings Today', value: '5', color: Colors.danger },
 ];
 
@@ -125,6 +126,17 @@ const DashboardScreen = () => {
 const [showHolidayBanner,
 setShowHolidayBanner] =
 useState(true);
+const [pendingLeaves, setPendingLeaves] = useState(0);
+
+useEffect(() => {
+  LeaveService.getEmployeeLeaveSummary()
+    .then(res => {
+      if (res?.Data) {
+        setPendingLeaves(res.Data.filter(r => r.Status === 'Pending').length);
+      }
+    })
+    .catch(() => {});
+}, []);
   const today = new Date().toLocaleDateString('en-GB', {
     weekday: 'long',
     day: 'numeric',
@@ -229,7 +241,7 @@ useState(true);
  
       {/* Quick Stats */}
       <View style={styles.statsRow}>
-        {buildStats(user?.Department).map((s) => (
+        {buildStats(user?.Department, pendingLeaves).map((s) => (
           <View key={s.label} style={styles.statBox}>
             <Text style={styles.statValue}>{s.value}</Text>
             <Text style={styles.statLabel}>{s.label}</Text>
@@ -259,6 +271,9 @@ useState(true);
           break;
         case 'leave':
           navigation.navigate('ApplyLeave');
+          break;
+        case 'projects':
+          navigation.navigate('ProjectList');
           break;
         default:
           console.log(`${c.title} clicked`);
@@ -292,7 +307,7 @@ useState(true);
  
 
     </ScrollView>
-    </AppScreen>
+  </AppScreen>
   );
 };
 const styles = StyleSheet.create({

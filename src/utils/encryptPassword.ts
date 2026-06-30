@@ -1,4 +1,4 @@
-import * as CryptoJS from 'react-native-crypto-js';
+import CryptoJS from 'react-native-crypto-js';
 
 const PASSWORD_SALT_KEY = '11ebf1673f3a4c08813e10851346ba06';
 const PASSWORD_SALT_IV = 'dcb95b4564cb4667';

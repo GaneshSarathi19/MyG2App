@@ -17,10 +17,10 @@ const ErrorView: React.FC<{ message: string; onRetry?: () => void }> = ({ messag
 };
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#FFF3F2', borderRadius: 8, margin: 12, borderColor: Colors.accentRed, borderWidth: 1 },
-  title: { fontWeight: '700', color: Colors.accentRed, marginBottom: 6 },
-  msg: { color: Colors.primaryText, marginBottom: 8 },
-  btn: { backgroundColor: Colors.accentBlue, padding: 10, borderRadius: 8, alignSelf: 'flex-start' },
+  container: { padding: 16, backgroundColor: '#FFF3F2', borderRadius: 8, margin: 12, borderColor: Colors.danger, borderWidth: 1 },
+  title: { fontWeight: '700', color: Colors.danger, marginBottom: 6 },
+  msg: { color: Colors.textPrimary, marginBottom: 8 },
+  btn: { backgroundColor: Colors.primary, padding: 10, borderRadius: 8, alignSelf: 'flex-start' },
   btnText: { color: '#fff', fontWeight: '600' },
 });
 

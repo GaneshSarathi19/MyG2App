@@ -29,7 +29,7 @@ const LogoContainer: React.FC<Props> = ({
   style,
   organisation = 'G2',
 }) => {
-  const config = ORG_CONFIG[organisation] ?? ORG_CONFIG['G2'];
+  const config = ORG_CONFIG[organisation] ?? ORG_CONFIG.G2;
 
   return (
     <View style={[styles.wrapper, style]}>

@@ -5,6 +5,7 @@ import AuthStack from './AuthStack';
 import AppStack from './AppStack';
 import {useAppSelector} from '../redux/hooks';
 import {DrawerProvider} from '../context/DrawerContext';
+import {SocketProvider} from '../context/SocketContext';
 import SidePanel from '../components/SidePanel';
 
 const RootNavigator = () => {
@@ -13,8 +14,10 @@ const RootNavigator = () => {
   return (
     <NavigationContainer>
       <DrawerProvider>
-        {isLoggedIn ? <AppStack /> : <AuthStack />}
-        <SidePanel />
+        <SocketProvider>
+          {isLoggedIn ? <AppStack /> : <AuthStack />}
+          <SidePanel />
+        </SocketProvider>
       </DrawerProvider>
     </NavigationContainer>
   );

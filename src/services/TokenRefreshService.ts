@@ -1,6 +1,5 @@
 import {store} from '../redux/store';
-import {logout, refreshTokenSuccess} from '../redux/slices/authSlice';
-import {AuthService} from './AuthService';
+import {logout} from '../redux/slices/authSlice';
 import {logger} from '../utils/logger';
 import {TOKEN_REFRESH_BUFFER_MS} from '../api/config';
 

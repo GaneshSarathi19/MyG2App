@@ -1,19 +1,16 @@
 import React, {useRef, useState, useCallback, useMemo, MutableRefObject} from 'react';
 import {
   FlatList,
-  ScrollView,
   ActivityIndicator,
   View,
   StyleSheet,
-  FlatListProps,
   NativeScrollEvent,
   NativeSyntheticEvent,
   RefreshControl,
-  ViewStyle,
 } from 'react-native';
 
 import {ScrollIndicator, ScrollIndicatorType} from './ScrollIndicators';
-import {ScrollableListProps, PaginationState} from './types';
+import {ScrollableListProps} from './types';
 
 /* ── Constants ──────────────────────────────────────────────────────── */
 
@@ -48,7 +45,6 @@ export function ScrollableList<T extends object>({
   showScrollIndicators = true,
   loadingMore = false,
   isLoading = false,
-  emptyText = 'No items found',
   initialNumToRender = 10,
   maxToRenderPerBatch = 10,
   windowSize = 10,
@@ -63,6 +59,8 @@ export function ScrollableList<T extends object>({
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
 
+  const {onScroll: _onScroll} = flatListProps;
+
   /* ── Scroll Handlers ──────────────────────────────────────────────── */
 
   const handleScroll = useCallback(
@@ -74,9 +72,9 @@ export function ScrollableList<T extends object>({
       setShowScrollTop(scrollY > scrollToTopThreshold);
       setShowScrollBottom(maxScrollY - scrollY > scrollToBottomThreshold && maxScrollY > 0);
 
-      flatListProps.onScroll?.(event);
+      _onScroll?.(event);
     },
-    [flatListProps.onScroll, scrollToTopThreshold, scrollToBottomThreshold],
+    [_onScroll, scrollToTopThreshold, scrollToBottomThreshold],
   );
 
   /* ── Scroll Actions ───────────────────────────────────────────────── */
@@ -137,7 +135,7 @@ export function ScrollableList<T extends object>({
         </View>
       </View>
     );
-  }, [isLoading, ListEmptyComponent, emptyText]);
+  }, [isLoading, ListEmptyComponent]);
 
   /* ── Render ───────────────────────────────────────────────────────── */
 

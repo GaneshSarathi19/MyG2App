@@ -1,7 +1,7 @@
 import axios, {AxiosInstance, AxiosError, InternalAxiosRequestConfig} from 'axios';
 import {API_BASE_URL, DEVICE_ID} from './config';
 import {store} from '../redux/store';
-import {logout, refreshTokenSuccess} from '../redux/slices/authSlice';
+import {logout} from '../redux/slices/authSlice';
 import {logger} from '../utils/logger';
 
 /* ── Axios Instance ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

@@ -9,6 +9,8 @@ import ApplyLeaveScreen from '../screens/app/ApplyLeaveScreen';
 import SettingsScreen from '../screens/app/SettingsScreen';
 import NotificationsScreen from '../screens/app/NotificationsScreen';
 import SnackBarWalletScreen from '../screens/app/SnackBarWalletScreen';
+import ProjectListScreen from '../screens/app/ProjectListScreen';
+import ProjectDetailScreen from '../screens/app/ProjectDetailScreen';
 const Stack = createNativeStackNavigator();
 
 const AppStack = () => {
@@ -45,6 +47,14 @@ const AppStack = () => {
       <Stack.Screen
         name="SnackBarWallet"
         component={SnackBarWalletScreen}
+      />
+      <Stack.Screen
+        name="ProjectList"
+        component={ProjectListScreen}
+      />
+      <Stack.Screen
+        name="ProjectDetail"
+        component={ProjectDetailScreen}
       />
     </Stack.Navigator>
   );
