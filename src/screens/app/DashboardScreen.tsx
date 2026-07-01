@@ -12,8 +12,6 @@ import {useAppSelector} from '../../redux/hooks';
 import {useDrawer} from '../../context/DrawerContext';
 import { Colors } from '../../theme';
 import AppScreen from '../../components/layout/AppScreen';
-import AvatarBadge from '../../components/common/AvatarBadge';
-import {getProfileImageUri} from '../../utils/profileImage';
 import { useNavigation } from '@react-navigation/native';
 import { LeaveService } from '../../services/LeaveService';
 
@@ -52,11 +50,15 @@ const CARDS: CardItem[] = [
   { id: 'news', title: 'News & Announcements', sub: 'Company updates', abbr: 'N', colors: Colors.secondary, badge: 2 },
 ];
  
-const buildStats = (department: string | undefined, pendingCount: number) => [
-  { label: 'Department', value: department || '-', color: Colors.primary },
-  { label: 'Pending Leaves', value: String(pendingCount), color: Colors.secondary },
-  { label: 'Meetings Today', value: '5', color: Colors.danger },
-];
+const StatItem: React.FC<{ label: string; value: string; color: string; last?: boolean }> = ({
+  label, value, color, last,
+}) => (
+  <View style={[styles.statItem, !last && styles.statItemBorder]}>
+    <Text style={styles.statValue}>{value}</Text>
+    <Text style={styles.statLabel}>{label}</Text>
+    <View style={[styles.statDot, { backgroundColor: color }]} />
+  </View>
+);
 
 
 const CardHero: React.FC<{ abbr: string }> = ({ abbr }) => (
@@ -105,8 +107,7 @@ const getGreeting = (): string => {
  
 /* ─── Screen ──────────────────────────────────────────────────────── */
 const DashboardScreen = () => {
-   const [isCompactHeader, setIsCompactHeader] =
-    useState(false);
+  const [isCompactHeader, setIsCompactHeader] = useState(false);
   const user = useAppSelector(state => state.auth.user);
   const orgFromStore = useAppSelector(
     state => state.organisation.selectedOrganisation,
@@ -122,7 +123,7 @@ const DashboardScreen = () => {
     return null;
   }, [orgFromStore, user]);
 
-  const initials = `${user?.FirstName?.charAt(0) || ''}${user?.LastName?.charAt(0) || ''}`;
+
 const [showHolidayBanner,
 setShowHolidayBanner] =
 useState(true);
@@ -158,11 +159,6 @@ useEffect(() => {
         </Text>
       </TouchableOpacity>
 
-      <AvatarBadge
-        initials={initials}
-        size={32}
-        imageUrl={getProfileImageUri(user?.ProfilePicture)}
-      />
       <Text style={styles.compactName}>
         {getGreeting()}, {user?.FirstName}
       </Text>
@@ -191,14 +187,16 @@ useEffect(() => {
             {today}
           </Text>
         </View>
+        {selectedOrganisation && (
+          <Image
+            source={ORG_LOGOS[selectedOrganisation]}
+            style={styles.headerOrgLogo}
+            resizeMode="contain"
+          />
+        )}
       </View>
 
       <View style={styles.headerProfileRow}>
-        <AvatarBadge
-          initials={initials}
-          size={50}
-          imageUrl={getProfileImageUri(user?.ProfilePicture)}
-        />
         <View style={styles.headerProfileText}>
           <Text style={styles.greeting}>
             {getGreeting()},
@@ -210,13 +208,6 @@ useEffect(() => {
             {user?.Designation}
           </Text>
         </View>
-        {selectedOrganisation && (
-          <Image
-            source={ORG_LOGOS[selectedOrganisation]}
-            style={styles.headerOrgLogo}
-            resizeMode="contain"
-          />
-        )}
       </View>
     </>
   )}
@@ -240,14 +231,9 @@ useEffect(() => {
 )}
  
       {/* Quick Stats */}
-      <View style={styles.statsRow}>
-        {buildStats(user?.Department, pendingLeaves).map((s) => (
-          <View key={s.label} style={styles.statBox}>
-            <Text style={styles.statValue}>{s.value}</Text>
-            <Text style={styles.statLabel}>{s.label}</Text>
-            <View style={[styles.statBar, { backgroundColor: s.color }]} />
-          </View>
-        ))}
+      <View style={styles.statsCard}>
+        <StatItem label="Pending Leaves" value={String(pendingLeaves)} color={Colors.secondary} />
+        <StatItem label="Meetings Today" value="5" color={Colors.danger} last />
       </View>
  
       {/* Quick Actions */}
@@ -350,7 +336,6 @@ headerProfileRow: {
   marginTop: 8,
 },
 headerProfileText: {
-  marginLeft: 14,
   flex: 1,
 },
   headerTopRow: {
@@ -382,29 +367,38 @@ headerProfileText: {
   dateTxt: { fontSize: 11, color: 'rgba(255,255,255,0.85)', fontWeight: '600' },
 
   // Stats
-  statsRow: {
+  statsCard: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
+    marginHorizontal: 16,
     marginTop: 16,
     marginBottom: 4,
-    gap: 10,
-  },
-  statBox: {
-    flex: 1,
     backgroundColor: Colors.white,
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 12,
+    borderRadius: 16,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    overflow: 'hidden',
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
   },
-  statValue: { fontSize: 20, fontWeight: '800', color: Colors.textPrimary },
-  statLabel: { fontSize: 11, color: Colors.textSecondary, marginTop: 2, fontWeight: '500' },
-  statBar: { position: 'absolute', top: 0, left: 0, right: 0, height: 3, borderTopLeftRadius: 12, borderTopRightRadius: 12 },
+  statItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    gap: 10,
+  },
+  statItemBorder: {
+    borderRightWidth: 1,
+    borderRightColor: Colors.border,
+  },
+  statDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statValue: { fontSize: 22, fontWeight: '800', color: Colors.textPrimary, minWidth: 28 },
+  statLabel: { fontSize: 11, color: Colors.textSecondary, fontWeight: '500', flex: 1 },
   section: { paddingHorizontal: 16, marginTop: 20 },
   heading: { fontSize: 16, fontWeight: '700', color: Colors.textPrimary, marginBottom: 12 },
 
