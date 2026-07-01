@@ -10,6 +10,8 @@ import {
   Linking,
   Modal,
   ActivityIndicator,
+  Animated,
+  TouchableOpacity,
 } from 'react-native';
 import AppScreen from '../../components/layout/AppScreen';
 import AppHeader from '../../components/common/AppHeader';
@@ -246,7 +248,47 @@ const LetterHeader: React.FC<{ letter: string; count: number }> = ({ letter, cou
 const EmployeesScreen: React.FC = () => {
   const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const flatListRef = useRef<FlatList<ListItem> | null>(null);
+  const filterAnimY = useRef(new Animated.Value(0)).current;
+  const FILTER_THRESHOLD = 100;
+
+  const filterOpacity = filterAnimY.interpolate({
+    inputRange: [0, FILTER_THRESHOLD],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+  const filterMaxHeight = filterAnimY.interpolate({
+    inputRange: [0, FILTER_THRESHOLD],
+    outputRange: [120, 0],
+    extrapolate: 'clamp',
+  });
+
+  const scrollToTop = useCallback(() => {
+    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+  }, []);
+
+  const showScrollTopRef = useRef(false);
+
+  const handleScroll = useMemo(
+    () =>
+      Animated.event(
+        [{ nativeEvent: { contentOffset: { y: filterAnimY } } }],
+        {
+          useNativeDriver: false,
+          listener: (event: any) => {
+            const y = event.nativeEvent.contentOffset.y;
+            const pastThreshold = y > 400;
+            if (pastThreshold !== showScrollTopRef.current) {
+              showScrollTopRef.current = pastThreshold;
+              setShowScrollTop(pastThreshold);
+            }
+          },
+        },
+      ),
+    [filterAnimY],
+  );
 
   /* Search + Filters */
   const [searchQuery, setSearchQuery] = useState('');
@@ -294,6 +336,7 @@ const EmployeesScreen: React.FC = () => {
       console.error('Failed to fetch employees:', err);
     } finally {
       setIsLoading(false);
+      setHasLoadedOnce(true);
     }
   }, []);
 
@@ -456,7 +499,12 @@ const EmployeesScreen: React.FC = () => {
       </View>
 
       {/* Filter Chips */}
-      <View style={styles.filtersContainer}>
+      <Animated.View
+        style={[
+          styles.filtersContainer,
+          { opacity: filterOpacity, maxHeight: filterMaxHeight },
+        ]}
+      >
         <FilterChipBar
           label="Department"
           options={departments}
@@ -469,7 +517,7 @@ const EmployeesScreen: React.FC = () => {
           selected={selectedDesignations}
           onToggle={toggleDesignation}
         />
-      </View>
+      </Animated.View>
 
       {/* Results count + Clear filters */}
       <View style={styles.resultsRow}>
@@ -487,17 +535,29 @@ const EmployeesScreen: React.FC = () => {
 
       {/* Employee List with Alphabet Scroller */}
       <View style={styles.listContainer}>
-        {isLoading && (
+        {/* Initial full-screen loader */}
+        {!hasLoadedOnce && isLoading && (
+          <View style={styles.initialLoader}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+            <Text style={styles.initialLoaderText}>Loading employee directory...</Text>
+          </View>
+        )}
+
+        {/* Spinner overlay on subsequent reloads */}
+        {hasLoadedOnce && isLoading && (
           <View style={styles.loadingOverlay}>
             <ActivityIndicator size="large" color={Colors.primary} />
           </View>
         )}
+
         <FlatList
           ref={flatListRef}
           data={sectionedData}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
           ListEmptyComponent={
             isLoading ? null : (
               <View style={styles.emptyContainer}>
@@ -519,6 +579,18 @@ const EmployeesScreen: React.FC = () => {
             }, 200);
           }}
         />
+
+        {/* Scroll-to-top button */}
+        {showScrollTop && (
+          <TouchableOpacity
+            style={styles.scrollToTopButton}
+            onPress={scrollToTop}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.scrollToTopArrow}>▲</Text>
+          </TouchableOpacity>
+        )}
+
         {availableLetters.length > 1 && (
           <View style={styles.alphabetBar}>
             {availableLetters.map((letter) => (
@@ -586,6 +658,7 @@ const styles = StyleSheet.create({
   filtersContainer: {
     paddingHorizontal: 16,
     paddingBottom: 4,
+    overflow: 'hidden',
   },
   filterSection: {
     marginBottom: 8,
@@ -946,6 +1019,44 @@ const styles = StyleSheet.create({
     fontSize: Fonts.sizes.sm,
     fontFamily: Fonts.semiBold,
     color: Colors.white,
+  },
+  initialLoader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  initialLoaderText: {
+    marginTop: 12,
+    fontSize: Fonts.sizes.sm,
+    fontFamily: Fonts.regular,
+    color: Colors.textSecondary,
+  },
+  scrollToTopButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 32,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    zIndex: 3,
+  },
+  scrollToTopArrow: {
+    color: Colors.white,
+    fontSize: 18,
+    fontWeight: '700',
   },
 });
 
