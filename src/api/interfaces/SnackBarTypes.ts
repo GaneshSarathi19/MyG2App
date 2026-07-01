@@ -103,6 +103,23 @@ export interface SnackBarDashboardData {
   notifications: SnackBarNotification[];
 }
 
+export interface SnackBarOrderRequest {
+  itemId: string;
+  itemName: string;
+  quantity: number;
+  notes?: string;
+}
+
+export interface SnackBarOrderResponse {
+  orderId: string;
+  itemName: string;
+  quantity: number;
+  totalAmount: number;
+  status: 'confirmed' | 'pending';
+  estimatedTime: string;
+  orderedAt: string;
+}
+
 export interface SnackBarApiResponse<T> {
   IsSuccess: boolean;
   Message: string;

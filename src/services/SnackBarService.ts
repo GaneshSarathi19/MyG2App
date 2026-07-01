@@ -9,6 +9,8 @@ import {
   TodayMenuItem,
   PendingTransaction,
   SnackBarNotification,
+  SnackBarOrderRequest,
+  SnackBarOrderResponse,
   SnackBarApiResponse,
 } from '../api/interfaces/SnackBarTypes';
 
@@ -23,6 +25,7 @@ const QUERIES = {
   todayMenu: 'GetSnackBarTodayMenu',
   pendingTransactions: 'GetSnackBarPendingTransactions',
   notifications: 'GetSnackBarNotifications',
+  placeOrder: 'PlaceSnackBarOrder',
 } as const;
 
 const successResponse = <T>(data: T): SnackBarApiResponse<T> => ({
@@ -187,4 +190,24 @@ export const SnackBarService = {
       () => callGetList<SnackBarNotification[]>(QUERIES.notifications),
       MOCK_NOTIFICATIONS,
     ),
+
+  placeOrder: (
+    request: SnackBarOrderRequest,
+  ): Promise<SnackBarApiResponse<SnackBarOrderResponse>> => {
+    const item =
+      MOCK_MENU.find(m => m.id === request.itemId) ?? MOCK_MENU[0];
+    const mockResponse: SnackBarOrderResponse = {
+      orderId: `ord-${Date.now()}`,
+      itemName: request.itemName || item.name,
+      quantity: request.quantity,
+      totalAmount: item.price * request.quantity,
+      status: 'confirmed',
+      estimatedTime: '15 mins',
+      orderedAt: new Date().toISOString(),
+    };
+    return withFallback(
+      () => callGetList<SnackBarOrderResponse>(QUERIES.placeOrder, request as unknown as Record<string, unknown>),
+      mockResponse,
+    );
+  },
 };

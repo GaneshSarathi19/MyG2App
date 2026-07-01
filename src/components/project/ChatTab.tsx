@@ -7,8 +7,6 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Fonts } from '../../theme';
@@ -35,20 +33,35 @@ const formatChatDate = (iso: string): string => {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 };
 
-const ChatBubble: React.FC<{ message: ChatMessage }> = ({ message }) => (
-  <View style={styles.bubbleContainer}>
-    <View style={styles.bubbleAvatar}>
-      <Text style={styles.bubbleAvatarText}>{message.senderInitials}</Text>
-    </View>
-    <View style={styles.bubbleContent}>
-      <View style={styles.bubbleHeader}>
-        <Text style={styles.bubbleSender}>{message.senderName}</Text>
-        <Text style={styles.bubbleTime}>{formatChatTime(message.timestamp)}</Text>
+const isOwnMessage = (msg: ChatMessage) => msg.senderName === 'You';
+
+const ChatBubble: React.FC<{ message: ChatMessage }> = ({ message }) => {
+  const own = isOwnMessage(message);
+
+  return (
+    <View style={[styles.bubbleOuter, own && styles.bubbleOuterOwn]}>
+      {!own && (
+        <View style={styles.bubbleAvatar}>
+          <Text style={styles.bubbleAvatarText}>{message.senderInitials}</Text>
+        </View>
+      )}
+      <View style={[styles.bubbleContent, own && styles.bubbleContentOwn]}>
+        {!own && (
+          <View style={styles.bubbleHeader}>
+            <Text style={styles.bubbleSender}>{message.senderName}</Text>
+            <Text style={styles.bubbleTime}>{formatChatTime(message.timestamp)}</Text>
+          </View>
+        )}
+        <Text style={[styles.bubbleMessage, own && styles.bubbleMessageOwn]}>
+          {message.message}
+        </Text>
+        {own && (
+          <Text style={styles.bubbleTimeOwn}>{formatChatTime(message.timestamp)}</Text>
+        )}
       </View>
-      <Text style={styles.bubbleMessage}>{message.message}</Text>
     </View>
-  </View>
-);
+  );
+};
 
 const ChatTab: React.FC<Props> = ({ projectId }) => {
   const [input, setInput] = React.useState('');
@@ -79,16 +92,13 @@ const ChatTab: React.FC<Props> = ({ projectId }) => {
   const dateKeys = Object.keys(grouped);
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 50 : 0}
-    >
+    <View style={styles.container}>
       <ScrollView
         ref={scrollRef}
         style={styles.chatArea}
         contentContainerStyle={styles.chatContent}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
       >
         {status === 'connecting' && (
           <View style={styles.connectingBar}>
@@ -125,7 +135,9 @@ const ChatTab: React.FC<Props> = ({ projectId }) => {
           onChangeText={setInput}
           placeholder="Type a message..."
           placeholderTextColor={Colors.textSecondary}
-          multiline
+          returnKeyType="send"
+          onSubmitEditing={handleSend}
+          blurOnSubmit
           maxLength={500}
         />
         <TouchableOpacity
@@ -136,7 +148,7 @@ const ChatTab: React.FC<Props> = ({ projectId }) => {
           <Text style={styles.sendBtnText}>{'\u2191'}</Text>
         </TouchableOpacity>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 };
 
@@ -177,41 +189,58 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     overflow: 'hidden',
   },
-  bubbleContainer: {
+  bubbleOuter: {
     flexDirection: 'row',
     marginBottom: 14,
+    alignItems: 'flex-end',
+  },
+  bubbleOuterOwn: {
+    justifyContent: 'flex-end',
   },
   bubbleAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10,
-    marginTop: 2,
+    marginRight: 8,
+    marginBottom: 2,
   },
   bubbleAvatarText: {
     color: Colors.white,
-    fontSize: Fonts.sizes.xs,
+    fontSize: 10,
     fontWeight: '700',
   },
   bubbleContent: {
-    flex: 1,
+    maxWidth: '78%',
     backgroundColor: Colors.white,
-    borderRadius: 12,
-    padding: 12,
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 16,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     elevation: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 3,
   },
+  bubbleContentOwn: {
+    backgroundColor: '#DCF8C5',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 4,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    elevation: 0,
+    shadowOpacity: 0,
+  },
   bubbleHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   bubbleSender: {
     fontSize: Fonts.sizes.xs,
@@ -219,13 +248,22 @@ const styles = StyleSheet.create({
     color: Colors.primary,
   },
   bubbleTime: {
-    fontSize: Fonts.sizes.xs,
+    fontSize: 10,
     color: Colors.textSecondary,
   },
   bubbleMessage: {
     fontSize: Fonts.sizes.sm,
     color: Colors.textPrimary,
     lineHeight: 20,
+  },
+  bubbleMessageOwn: {
+    color: Colors.textPrimary,
+  },
+  bubbleTimeOwn: {
+    fontSize: 10,
+    color: 'rgba(0,0,0,0.45)',
+    textAlign: 'right',
+    marginTop: 2,
   },
   emptyChat: {
     flex: 1,
@@ -251,10 +289,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.subtle,
     borderRadius: 20,
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 10,
     fontSize: Fonts.sizes.sm,
     color: Colors.textPrimary,
-    maxHeight: 80,
     marginRight: 8,
   },
   sendBtn: {

@@ -8,6 +8,7 @@ import {
   TextInput,
   ActivityIndicator,
   RefreshControl,
+  Modal,
 } from 'react-native';
 import { Colors, Fonts } from '../../theme';
 import AppScreen from '../../components/layout/AppScreen';
@@ -20,6 +21,7 @@ import {
   PurchaseItem,
   TodayMenuItem,
   SnackBarNotification,
+  SnackBarOrderResponse,
 } from '../../api/interfaces/SnackBarTypes';
 
 type LoadState<T> = { data: T | null; loading: boolean; error: string | null };
@@ -109,8 +111,15 @@ const PurchaseRow: React.FC<{ item: PurchaseItem }> = ({ item }) => {
 
 /* ─── Menu Card ──────────────────────────────────────────────────────── */
 
-const MenuCard: React.FC<{ item: TodayMenuItem }> = ({ item }) => (
-  <View style={[styles.menuCard, !item.available && styles.menuCardUnavailable]}>
+const MenuCard: React.FC<{ item: TodayMenuItem; onOrder: (item: TodayMenuItem) => void }> = ({
+  item,
+  onOrder,
+}) => (
+  <TouchableOpacity
+    activeOpacity={item.available ? 0.7 : 1}
+    onPress={() => item.available && onOrder(item)}
+    style={[styles.menuCard, !item.available && styles.menuCardUnavailable]}
+  >
     {item.available ? (
       <View style={styles.menuAvailBadge}>
         <Text style={styles.menuAvailText}>Available</Text>
@@ -131,7 +140,12 @@ const MenuCard: React.FC<{ item: TodayMenuItem }> = ({ item }) => (
         <Text style={styles.menuCategoryText}>{item.category}</Text>
       </View>
     </View>
-  </View>
+    {item.available && (
+      <View style={styles.menuOrderOverlay}>
+        <Text style={styles.menuOrderText}>Order</Text>
+      </View>
+    )}
+  </TouchableOpacity>
 );
 
 /* ─── Notification Row ───────────────────────────────────────────────── */
@@ -160,6 +174,136 @@ const NotificationRow: React.FC<{ item: SnackBarNotification }> = ({ item }) => 
   );
 };
 
+/* ─── Order Modal ─────────────────────────────────────────────────────── */
+
+const OrderModal: React.FC<{
+  visible: boolean;
+  item: TodayMenuItem | null;
+  quantity: number;
+  notes: string;
+  placing: boolean;
+  orderResult: SnackBarOrderResponse | null;
+  onQuantityChange: (q: number) => void;
+  onNotesChange: (n: string) => void;
+  onPlaceOrder: () => void;
+  onClose: () => void;
+}> = ({
+  visible,
+  item,
+  quantity,
+  notes,
+  placing,
+  orderResult,
+  onQuantityChange,
+  onNotesChange,
+  onPlaceOrder,
+  onClose,
+}) => (
+  <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <View style={styles.modalOverlay}>
+      <View style={styles.modalContent}>
+        {orderResult ? (
+          <>
+            <View style={styles.orderSuccessIcon}>
+              <Text style={styles.orderSuccessIconText}>{'\u2713'}</Text>
+            </View>
+            <Text style={styles.orderSuccessTitle}>Order Confirmed!</Text>
+            <View style={styles.orderSuccessDetails}>
+              <View style={styles.orderSuccessRow}>
+                <Text style={styles.orderSuccessLabel}>Item</Text>
+                <Text style={styles.orderSuccessValue}>{orderResult.itemName}</Text>
+              </View>
+              <View style={styles.orderSuccessRow}>
+                <Text style={styles.orderSuccessLabel}>Qty</Text>
+                <Text style={styles.orderSuccessValue}>{orderResult.quantity}</Text>
+              </View>
+              <View style={styles.orderSuccessRow}>
+                <Text style={styles.orderSuccessLabel}>Total</Text>
+                <Text style={styles.orderSuccessValue}>{formatCurrency(orderResult.totalAmount)}</Text>
+              </View>
+              <View style={styles.orderSuccessRow}>
+                <Text style={styles.orderSuccessLabel}>Est. Time</Text>
+                <Text style={styles.orderSuccessValue}>{orderResult.estimatedTime}</Text>
+              </View>
+              <View style={styles.orderSuccessRow}>
+                <Text style={styles.orderSuccessLabel}>Order ID</Text>
+                <Text style={[styles.orderSuccessValue, styles.orderSuccessId]}>{orderResult.orderId}</Text>
+              </View>
+            </View>
+            <TouchableOpacity style={styles.orderDoneBtn} onPress={onClose}>
+              <Text style={styles.orderDoneBtnText}>Done</Text>
+            </TouchableOpacity>
+          </>
+        ) : item ? (
+          <>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Place Order</Text>
+              <TouchableOpacity onPress={onClose}>
+                <Text style={styles.modalClose}>{'\u2715'}</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.modalItemPreview}>
+              <View style={styles.modalItemIcon}>
+                <View style={styles.modalItemDot} />
+              </View>
+              <View style={styles.modalItemInfo}>
+                <Text style={styles.modalItemName}>{item.name}</Text>
+                <Text style={styles.modalItemPrice}>{formatCurrency(item.price)}</Text>
+                <Text style={styles.modalItemCategory}>{item.category}</Text>
+              </View>
+            </View>
+            <View style={styles.modalDivider} />
+            <View style={styles.quantityRow}>
+              <Text style={styles.quantityLabel}>Quantity</Text>
+              <View style={styles.quantityControls}>
+                <TouchableOpacity
+                  style={[styles.qtyBtn, quantity <= 1 && styles.qtyBtnDisabled]}
+                  onPress={() => onQuantityChange(Math.max(1, quantity - 1))}
+                  disabled={quantity <= 1}
+                >
+                  <Text style={[styles.qtyBtnText, quantity <= 1 && styles.qtyBtnTextDisabled]}>-</Text>
+                </TouchableOpacity>
+                <View style={styles.qtyValueWrap}>
+                  <Text style={styles.qtyValue}>{quantity}</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.qtyBtn}
+                  onPress={() => onQuantityChange(quantity + 1)}
+                >
+                  <Text style={styles.qtyBtnText}>+</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            <TextInput
+              style={styles.notesInput}
+              placeholder="Add notes (optional)..."
+              placeholderTextColor={Colors.textSecondary}
+              value={notes}
+              onChangeText={onNotesChange}
+              multiline
+            />
+            <View style={styles.modalTotalRow}>
+              <Text style={styles.modalTotalLabel}>Total</Text>
+              <Text style={styles.modalTotalValue}>{formatCurrency(item.price * quantity)}</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.placeOrderBtn, placing && styles.placeOrderBtnDisabled]}
+              onPress={onPlaceOrder}
+              disabled={placing}
+            >
+              {placing ? (
+                <ActivityIndicator size="small" color={Colors.white} />
+              ) : (
+                <Text style={styles.placeOrderBtnText}>Place Order</Text>
+              )}
+            </TouchableOpacity>
+          </>
+        ) : null}
+      </View>
+    </View>
+  </Modal>
+);
+
 /* ─── Main Screen ────────────────────────────────────────────────────── */
 
 const SnackBarWalletScreen: React.FC = () => {
@@ -172,6 +316,12 @@ const SnackBarWalletScreen: React.FC = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'amount' | 'name'>('date');
+
+  const [orderItem, setOrderItem] = useState<TodayMenuItem | null>(null);
+  const [orderQuantity, setOrderQuantity] = useState(1);
+  const [orderNotes, setOrderNotes] = useState('');
+  const [orderPlacing, setOrderPlacing] = useState(false);
+  const [orderResult, setOrderResult] = useState<SnackBarOrderResponse | null>(null);
 
   const runQuery = useCallback(async () => {
     const withErr = <T,>(
@@ -202,6 +352,35 @@ const SnackBarWalletScreen: React.FC = () => {
   useEffect(() => {
     runQuery();
   }, [runQuery]);
+
+  const openOrderModal = useCallback((item: TodayMenuItem) => {
+    setOrderItem(item);
+    setOrderQuantity(1);
+    setOrderNotes('');
+    setOrderResult(null);
+    setOrderPlacing(false);
+  }, []);
+
+  const closeOrderModal = useCallback(() => {
+    setOrderItem(null);
+    setOrderResult(null);
+    setOrderPlacing(false);
+  }, []);
+
+  const handlePlaceOrder = useCallback(async () => {
+    if (!orderItem) return;
+    setOrderPlacing(true);
+    const res = await SnackBarService.placeOrder({
+      itemId: orderItem.id,
+      itemName: orderItem.name,
+      quantity: orderQuantity,
+      notes: orderNotes.trim() || undefined,
+    });
+    if (res.IsSuccess) {
+      setOrderResult(res.Data);
+    }
+    setOrderPlacing(false);
+  }, [orderItem, orderQuantity, orderNotes]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -424,7 +603,7 @@ const SnackBarWalletScreen: React.FC = () => {
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={styles.menuRow}>
                 {todayMenu.data.map(item => (
-                  <MenuCard key={item.id} item={item} />
+                  <MenuCard key={item.id} item={item} onOrder={openOrderModal} />
                 ))}
               </View>
             </ScrollView>
@@ -462,6 +641,19 @@ const SnackBarWalletScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
         )}
+
+        <OrderModal
+          visible={orderItem !== null}
+          item={orderItem}
+          quantity={orderQuantity}
+          notes={orderNotes}
+          placing={orderPlacing}
+          orderResult={orderResult}
+          onQuantityChange={setOrderQuantity}
+          onNotesChange={setOrderNotes}
+          onPlaceOrder={handlePlaceOrder}
+          onClose={closeOrderModal}
+        />
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
@@ -981,6 +1173,251 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 32,
+  },
+
+  /* Menu Order Overlay */
+  menuOrderOverlay: {
+    marginTop: 10,
+    backgroundColor: Colors.secondary,
+    borderRadius: 8,
+    paddingVertical: 7,
+    alignItems: 'center',
+  },
+  menuOrderText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.white,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+
+  /* Order Modal */
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    width: '100%',
+    backgroundColor: Colors.white,
+    borderRadius: 24,
+    padding: 24,
+    maxHeight: '90%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: Fonts.sizes.md,
+    fontFamily: Fonts.bold,
+    color: Colors.textPrimary,
+  },
+  modalClose: {
+    fontSize: 18,
+    color: Colors.textSecondary,
+    fontWeight: '700',
+    padding: 4,
+  },
+  modalItemPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 14,
+  },
+  modalItemIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: `${Colors.primary}10`,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalItemDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: Colors.primary,
+    opacity: 0.3,
+  },
+  modalItemInfo: {
+    flex: 1,
+  },
+  modalItemName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginBottom: 2,
+  },
+  modalItemPrice: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.secondary,
+    marginBottom: 2,
+  },
+  modalItemCategory: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+  },
+  modalDivider: {
+    height: 1,
+    backgroundColor: Colors.border,
+    marginBottom: 20,
+  },
+  quantityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  quantityLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+  },
+  quantityControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 0,
+  },
+  qtyBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: Colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  qtyBtnDisabled: {
+    opacity: 0.4,
+  },
+  qtyBtnText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  qtyBtnTextDisabled: {
+    color: Colors.textSecondary,
+  },
+  qtyValueWrap: {
+    minWidth: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  qtyValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  notesInput: {
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 13,
+    color: Colors.textPrimary,
+    minHeight: 60,
+    textAlignVertical: 'top',
+    marginBottom: 16,
+  },
+  modalTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingTop: 4,
+  },
+  modalTotalLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+  },
+  modalTotalValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: Colors.secondary,
+  },
+  placeOrderBtn: {
+    backgroundColor: Colors.secondary,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  placeOrderBtnDisabled: {
+    opacity: 0.7,
+  },
+  placeOrderBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.white,
+  },
+
+  /* Order Success */
+  orderSuccessIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#22C55E20',
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  orderSuccessIconText: {
+    fontSize: 32,
+    color: '#22C55E',
+    fontWeight: '800',
+  },
+  orderSuccessTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  orderSuccessDetails: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+  },
+  orderSuccessRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  orderSuccessLabel: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  orderSuccessValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  orderSuccessId: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  orderDoneBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  orderDoneBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.white,
   },
 });
 
