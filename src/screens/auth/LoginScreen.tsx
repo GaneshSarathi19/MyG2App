@@ -118,13 +118,12 @@ const LoginScreen = () => {
           contentContainerStyle={styles.scrollContainer}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Top decorative banner */}
-          <View style={styles.banner}>
-            <View style={styles.bannerAccent} />
-          </View>
-
           <View style={styles.card}>
-            <LogoContainer
+            <View style={styles.banner}>
+              <View style={styles.bannerAccent} />
+            </View>
+            <View style={styles.cardContent}>
+              <LogoContainer
               variant="full"
               organisation={selectedOrganisation ?? 'G2'}
               source={require('../../resources/g2logo-small.png')}
@@ -235,6 +234,7 @@ const LoginScreen = () => {
             >
               <Text style={styles.changeOrgText}>Change Organisation</Text>
             </TouchableOpacity>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -258,9 +258,8 @@ const styles = StyleSheet.create({
   banner: {
     height: 6,
     backgroundColor: Colors.primary,
-    marginHorizontal: 20,
-    borderTopLeftRadius: 4,
-    borderTopRightRadius: 4,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
     overflow: 'hidden',
     flexDirection: 'row',
   },
@@ -272,7 +271,6 @@ const styles = StyleSheet.create({
 
   card: {
     marginHorizontal: 20,
-    padding: 24,
     borderRadius: 16,
     backgroundColor: Colors.background,
     shadowColor: '#000',
@@ -280,6 +278,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 5,
+    overflow: 'hidden',
+  },
+  cardContent: {
+    padding: 24,
   },
 
   input: {

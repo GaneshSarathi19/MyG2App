@@ -22,6 +22,7 @@
     "react-native-crypto-js": "^1.0.0",
     "react-native-encrypted-storage": "^4.0.3",
     "react-native-safe-area-context": "^5.8.0",
+    "react-native-screenguard": "^2.0.2",
     "react-native-screens": "^4.25.2",
     "react-redux": "^9.3.0",
     "redux-persist": "^6.0.0"

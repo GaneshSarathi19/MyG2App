@@ -6,11 +6,11 @@ import { store, persistor } from './src/redux/store';
 import { AuthProvider } from './src/context/AuthContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { initScreenGuard } from './src/utils/screenGuard';
+import { initAndActivateScreenGuard } from './src/utils/screenGuard';
 
 const App = () => {
   useEffect(() => {
-    initScreenGuard();
+    initAndActivateScreenGuard();
   }, []);
 
   return (

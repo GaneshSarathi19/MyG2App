@@ -12,11 +12,13 @@ import { Colors } from '../../theme';
 interface AppHeaderProps {
   title: string;
   showBack?: boolean;
+  onBack?: () => void;
 }
 
 const AppHeader: React.FC<AppHeaderProps> = ({
   title,
   showBack = true,
+  onBack,
 }) => {
   const navigation = useNavigation<any>();
 
@@ -25,7 +27,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       {showBack && (
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => (onBack ? onBack() : navigation.goBack())}
         >
           <Text style={styles.backIcon}>
             ←

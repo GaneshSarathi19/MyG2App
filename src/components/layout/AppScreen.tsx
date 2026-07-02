@@ -1,8 +1,7 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { StyleSheet, ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../theme';
-import { activateScreenGuard, deactivateScreenGuard } from '../../utils/screenGuard';
 
 interface Props {
   children: React.ReactNode;
@@ -13,13 +12,6 @@ export default function AppScreen({
   children,
   style,
 }: Props) {
-  useEffect(() => {
-    activateScreenGuard();
-    return () => {
-      deactivateScreenGuard();
-    };
-  }, []);
-
   return (
 
     <SafeAreaView

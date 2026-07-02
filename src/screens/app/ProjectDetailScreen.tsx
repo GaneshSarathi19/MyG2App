@@ -1,12 +1,13 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   useWindowDimensions,
+  Animated,
 } from 'react-native';
-import { useRoute, RouteProp } from '@react-navigation/native';
+import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { Colors, Fonts } from '../../theme';
 import AppScreen from '../../components/layout/AppScreen';
 import AppHeader from '../../components/common/AppHeader';
@@ -33,6 +34,7 @@ const STATUS_LABEL: Record<string, { label: string; color: string }> = {
 };
 
 const ProjectDetailScreen: React.FC = () => {
+  const navigation = useNavigation();
   const route = useRoute<RouteProp<ParamList, 'ProjectDetail'>>();
   const { projectId } = route.params;
   const { width } = useWindowDimensions();
@@ -48,6 +50,45 @@ const ProjectDetailScreen: React.FC = () => {
     joinProject(projectId);
     return () => leaveProject();
   }, [projectId, joinProject, leaveProject]);
+
+  const headerCollapseAnim = useRef(new Animated.Value(0)).current;
+  const isChat = activeTab === 'chat';
+
+  useEffect(() => {
+    Animated.timing(headerCollapseAnim, {
+      toValue: isChat ? 1 : 0,
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+  }, [isChat, headerCollapseAnim]);
+
+  const headerTranslateY = headerCollapseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -140],
+  });
+
+  const headerOpacity = headerCollapseAnim.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [1, 1, 0],
+  });
+
+  const tabsTranslateY = headerCollapseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -50],
+  });
+
+  const tabsOpacity = headerCollapseAnim.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [1, 1, 0],
+  });
+
+  const handleBack = useCallback(() => {
+    if (isChat) {
+      setActiveTab('documents');
+    } else {
+      navigation.goBack();
+    }
+  }, [isChat, navigation]);
 
   if (!project) {
     return (
@@ -65,18 +106,25 @@ const ProjectDetailScreen: React.FC = () => {
 
   return (
     <AppScreen>
-      <AppHeader title={project.name} />
+      <AppHeader title={project.name} onBack={handleBack} />
       <View style={styles.root}>
+        <Animated.View
+          style={[
+            styles.headerCollapsible,
+            {opacity: headerOpacity, transform: [{translateY: headerTranslateY}]},
+            isChat && styles.collapsedLayout,
+          ]}
+        >
         <View style={styles.projectHeader}>
           <View style={styles.headerTopRow}>
-            <Text style={styles.projectName} numberOfLines={2}>{project.name}</Text>
+            <Text style={styles.projectName} numberOfLines={4}>{project.name}</Text>
             <View style={[styles.statusBadge, { backgroundColor: statusCfg.color + '18' }]}>
               <Text style={[styles.statusText, { color: statusCfg.color }]}>
                 {statusCfg.label}
               </Text>
             </View>
           </View>
-          <Text style={styles.projectDesc} numberOfLines={2}>{project.description}</Text>
+          <Text style={styles.projectDesc}>{project.description}</Text>
           <View style={styles.projectMeta}>
             <View style={styles.metaItem}>
               <Text style={styles.metaLabel}>Deadline</Text>
@@ -92,7 +140,15 @@ const ProjectDetailScreen: React.FC = () => {
             </View>
           </View>
         </View>
+        </Animated.View>
 
+        <Animated.View
+          style={[
+            styles.tabsCollapsible,
+            {opacity: tabsOpacity, transform: [{translateY: tabsTranslateY}]},
+            isChat && styles.collapsedLayout,
+          ]}
+        >
         <View style={styles.segmentBar}>
           {TABS.map((tab) => {
             const isActive = activeTab === tab.key;
@@ -119,10 +175,11 @@ const ProjectDetailScreen: React.FC = () => {
             );
           })}
         </View>
+        </Animated.View>
 
         <View style={styles.tabContent}>
           {activeTab === 'documents' && <DocumentsTab documents={documents} />}
-          {activeTab === 'chat' && <ChatTab projectId={projectId} />}
+          {activeTab === 'chat' && <ChatTab projectId={projectId} isFullScreen={isChat} />}
           {activeTab === 'highlights' && <HighlightsTab highlights={highlights} />}
         </View>
       </View>
@@ -134,6 +191,19 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: Colors.subtle,
+  },
+  headerCollapsible: {
+    zIndex: 2,
+  },
+  collapsedLayout: {
+    height: 0,
+    overflow: 'hidden',
+    paddingVertical: 0,
+    marginVertical: 0,
+    borderWidth: 0,
+  },
+  tabsCollapsible: {
+    zIndex: 1,
   },
   errorContainer: {
     flex: 1,

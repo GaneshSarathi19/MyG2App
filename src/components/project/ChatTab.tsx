@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Fonts } from '../../theme';
@@ -15,6 +17,7 @@ import { useSocket } from '../../context/SocketContext';
 
 interface Props {
   projectId: string;
+  isFullScreen?: boolean;
 }
 
 const formatChatTime = (iso: string): string => {
@@ -63,12 +66,15 @@ const ChatBubble: React.FC<{ message: ChatMessage }> = ({ message }) => {
   );
 };
 
-const ChatTab: React.FC<Props> = ({ projectId }) => {
-  const [input, setInput] = React.useState('');
+const MAX_INPUT_HEIGHT = 120;
+
+const ChatTab: React.FC<Props> = ({ projectId, isFullScreen }) => {
+  const [input, setInput] = useState('');
   const scrollRef = useRef<ScrollView>(null);
   const inputRef = useRef<TextInput>(null);
   const { messages, sendMessage, status } = useSocket();
   const insets = useSafeAreaInsets();
+  const [inputHeight, setInputHeight] = useState(0);
 
   useEffect(() => {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150);
@@ -91,14 +97,23 @@ const ChatTab: React.FC<Props> = ({ projectId }) => {
 
   const dateKeys = Object.keys(grouped);
 
+  const inputBarBottomPadding = Platform.OS === 'android'
+    ? Math.max(insets.bottom, 4)
+    : 0;
+
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={0}
+    >
       <ScrollView
         ref={scrollRef}
         style={styles.chatArea}
         contentContainerStyle={styles.chatContent}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
+        scrollEventThrottle={16}
       >
         {status === 'connecting' && (
           <View style={styles.connectingBar}>
@@ -127,28 +142,53 @@ const ChatTab: React.FC<Props> = ({ projectId }) => {
         )}
       </ScrollView>
 
-      <View style={[styles.inputBar, { paddingBottom: insets.bottom || 10 }]}>
+      <View
+        style={[
+          styles.inputBar,
+          { paddingBottom: isFullScreen ? 9 : 12 },
+        ]}
+      >
+        <TouchableOpacity style={styles.toolBtn}>
+          <Text style={styles.toolBtnText}>+</Text>
+        </TouchableOpacity>
+
         <TextInput
           ref={inputRef}
-          style={styles.input}
+          style={[
+            styles.input,
+            inputHeight > 0 && inputHeight < MAX_INPUT_HEIGHT && { height: inputHeight },
+          ]}
           value={input}
           onChangeText={setInput}
+          onContentSizeChange={(e) =>
+            setInputHeight(Math.min(e.nativeEvent.contentSize.height, MAX_INPUT_HEIGHT))
+          }
           placeholder="Type a message..."
           placeholderTextColor={Colors.textSecondary}
+          multiline
           returnKeyType="send"
           onSubmitEditing={handleSend}
           blurOnSubmit
           maxLength={500}
         />
+
+        <TouchableOpacity style={styles.toolBtn}>
+          <Text style={styles.toolBtnText}>{'\u263A'}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.toolBtn}>
+          <Text style={styles.toolBtnText}>{'\u266A'}</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity
           style={[styles.sendBtn, !input.trim() && styles.sendBtnDisabled]}
           onPress={handleSend}
           disabled={!input.trim()}
         >
-          <Text style={styles.sendBtnText}>{'\u2191'}</Text>
+          <Text style={styles.sendBtnText}>{'\u2192'}</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -158,10 +198,6 @@ const styles = StyleSheet.create({
   },
   chatArea: {
     flex: 1,
-  },
-  chatContent: {
-    padding: 16,
-    paddingBottom: 8,
   },
   connectingBar: {
     flexDirection: 'row',
@@ -278,26 +314,46 @@ const styles = StyleSheet.create({
   inputBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 8,
+    paddingTop: 12,
+    paddingBottom: 12,
+    backgroundColor: Colors.white,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
-    backgroundColor: Colors.white,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: -3},
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+  },
+  toolBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  toolBtnText: {
+    fontSize: 20,
+    color: Colors.textSecondary,
+    fontWeight: '600',
   },
   input: {
     flex: 1,
     backgroundColor: Colors.subtle,
-    borderRadius: 20,
-    paddingHorizontal: 14,
+    borderRadius: 22,
+    paddingHorizontal: 16,
     paddingVertical: 10,
     fontSize: Fonts.sizes.sm,
     color: Colors.textPrimary,
-    marginRight: 8,
+    marginHorizontal: 4,
+    maxHeight: MAX_INPUT_HEIGHT,
   },
   sendBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
@@ -307,8 +363,12 @@ const styles = StyleSheet.create({
   },
   sendBtnText: {
     color: Colors.white,
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
+  },
+  chatContent: {
+    padding: 16,
+    paddingBottom: 12,
   },
 });
 

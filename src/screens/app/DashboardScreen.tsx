@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
-  Image,
+  Animated,
 } from 'react-native';
 import {useAppSelector} from '../../redux/hooks';
 import {useDrawer} from '../../context/DrawerContext';
@@ -107,7 +107,6 @@ const getGreeting = (): string => {
  
 /* ─── Screen ──────────────────────────────────────────────────────── */
 const DashboardScreen = () => {
-  const [isCompactHeader, setIsCompactHeader] = useState(false);
   const user = useAppSelector(state => state.auth.user);
   const orgFromStore = useAppSelector(
     state => state.organisation.selectedOrganisation,
@@ -143,82 +142,119 @@ useEffect(() => {
     day: 'numeric',
     month: 'long',
   });
+
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  const handleScroll = useCallback((e: { nativeEvent: { contentOffset: { y: number } } }) => {
+    scrollY.setValue(e.nativeEvent.contentOffset.y);
+  }, [scrollY]);
+
+  const animProgress = scrollY.interpolate({
+    inputRange: [0, 80],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+
+  const largeProfileOpacity = animProgress.interpolate({
+    inputRange: [0, 0.7, 1],
+    outputRange: [1, 1, 0],
+  });
+
+  const greetingOpacity = animProgress.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [1, 0.3, 0],
+  });
+
+  const desigOpacity = animProgress.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [1, 0, 0],
+  });
+
+  const dateChipOpacity = animProgress.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [1, 0, 0],
+  });
+
+  const compactOpacity = animProgress.interpolate({
+    inputRange: [0, 0.7, 1],
+    outputRange: [0, 0, 1],
+  });
+
+  const logoScale = animProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0.7],
+  });
+
+  const profileTranslateY = animProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -80],
+  });
+
+  const headerPadBottom = animProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [20, 4],
+  });
+
+  const topRowMarginB = animProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [12, 0],
+  });
  
   return (
     <AppScreen>
       {/* header */}
-<View style={styles.header}>
-  {isCompactHeader ? (
-    <View style={styles.compactHeader}>
-      <TouchableOpacity
-        onPress={toggle}
-        style={styles.hamburger}
-      >
-        <Text style={styles.hamburgerIcon}>
-          ☰
-        </Text>
-      </TouchableOpacity>
-
-      <Text style={styles.compactName}>
-        {getGreeting()}, {user?.FirstName}
+<Animated.View style={[styles.header, {paddingBottom: headerPadBottom}]}>
+  <Animated.View style={[styles.headerTopRow, {marginBottom: topRowMarginB}]}>
+    <TouchableOpacity
+      onPress={toggle}
+      style={styles.hamburger}
+    >
+      <Text style={styles.hamburgerIcon}>
+        ☰
       </Text>
-      {selectedOrganisation && (
-        <Image
-          source={ORG_LOGOS[selectedOrganisation]}
-          style={styles.compactOrgLogo}
-          resizeMode="contain"
-        />
-      )}
+    </TouchableOpacity>
+
+    <View style={styles.headerTopCenter}>
+      <Animated.View style={[styles.dateChip, {opacity: dateChipOpacity}]}>
+        <Text style={styles.dateTxt}>
+          {today}
+        </Text>
+      </Animated.View>
+
+      <Animated.View style={[styles.compactGreetingWrap, {opacity: compactOpacity}]}>
+        <Text style={styles.compactName}>
+          {getGreeting()}, {user?.FirstName}
+        </Text>
+      </Animated.View>
     </View>
-  ) : (
-    <>
-      <View style={styles.headerTopRow}>
-        <TouchableOpacity
-          onPress={toggle}
-          style={styles.hamburger}
-        >
-          <Text style={styles.hamburgerIcon}>
-            ☰
-          </Text>
-        </TouchableOpacity>
 
-        <View style={styles.dateChip}>
-          <Text style={styles.dateTxt}>
-            {today}
-          </Text>
-        </View>
-        {selectedOrganisation && (
-          <Image
-            source={ORG_LOGOS[selectedOrganisation]}
-            style={styles.headerOrgLogo}
-            resizeMode="contain"
-          />
-        )}
-      </View>
+    {selectedOrganisation && (
+      <Animated.Image
+        source={ORG_LOGOS[selectedOrganisation]}
+        style={[styles.headerOrgLogo, {transform: [{scale: logoScale}]}]}
+        resizeMode="contain"
+      />
+    )}
+  </Animated.View>
 
-      <View style={styles.headerProfileRow}>
-        <View style={styles.headerProfileText}>
-          <Text style={styles.greeting}>
-            {getGreeting()},
-          </Text>
-          <Text style={styles.name}>
-            {user?.FirstName}
-          </Text>
-          <Text style={styles.designation}>
-            {user?.Designation}
-          </Text>
-        </View>
-      </View>
-    </>
-  )}
-</View>
+  <Animated.View
+    style={[styles.headerProfileRow, {opacity: largeProfileOpacity, transform: [{translateY: profileTranslateY}]}]}
+  >
+    <View style={styles.headerProfileText}>
+      <Animated.Text style={[styles.greeting, {opacity: greetingOpacity}]}>
+        {getGreeting()},
+      </Animated.Text>
+      <Text style={styles.name}>
+        {user?.FirstName}
+      </Text>
+      <Animated.Text style={[styles.designation, {opacity: desigOpacity}]}>
+        {user?.Designation}
+      </Animated.Text>
+    </View>
+  </Animated.View>
+</Animated.View>
     <ScrollView style={styles.root} showsVerticalScrollIndicator={false}
-     onScroll={(event) => {
-    const offset =
-      event.nativeEvent.contentOffset.y;
-
-    setIsCompactHeader(offset > 80);
-  }}
+    onScroll={handleScroll}
   scrollEventThrottle={16}>
      {showHolidayBanner && (
   <HolidayBanner
@@ -303,7 +339,6 @@ const styles = StyleSheet.create({
  header: {
   backgroundColor: Colors.primary,
   paddingTop: 16,
-  paddingBottom: 20,
   paddingHorizontal: 20,
 
   elevation: 4,
@@ -318,11 +353,6 @@ const styles = StyleSheet.create({
 
   zIndex: 100,
 },
-compactHeader: {
-  flexDirection: 'row',
-  alignItems: 'center',
-},
-
 compactName: {
   color: Colors.white,
   fontSize: 16,
@@ -342,7 +372,6 @@ headerProfileText: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
   },
   scrollContent: {
   paddingBottom: 32,
@@ -365,6 +394,19 @@ headerProfileText: {
     paddingVertical: 4,
   },
   dateTxt: { fontSize: 11, color: 'rgba(255,255,255,0.85)', fontWeight: '600' },
+
+  headerTopCenter: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+
+  compactGreetingWrap: {
+    position: 'absolute',
+    left: 12,
+    right: 0,
+  },
 
   // Stats
   statsCard: {
@@ -480,14 +522,6 @@ headerProfileText: {
     borderRadius: 10,
     backgroundColor: 'rgba(255,255,255,0.15)',
     marginLeft: 12,
-  },
-
-  compactOrgLogo: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    marginLeft: 8,
   },
 
 });
